@@ -235,3 +235,19 @@ td.actions{
   align-items:flex-start;
   padding-top:8px;
 }
+.btn-new{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  gap:8px;
+}
+
+.btn-new-title{
+  font-size:34px;
+  font-weight:900;
+  color:#1565c0;
+  line-height:1;
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
