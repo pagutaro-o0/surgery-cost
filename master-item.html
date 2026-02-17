@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>master-item</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="page-title">master-item.html</div>
+
+  <div class="shell">
+    <div class="topbar">
+      <div class="logo">✂️</div>
+      <div class="app-title">手術コスト算定管理</div>
+      <div class="nav">
+        <a href="./cases.html">患者一覧</a>
+        <a href="./master-item.html">マスタ編集</a>
+      </div>
+    </div>
+
+    <div class="content">
+      <div style="display:grid; grid-template-columns: 140px 160px 280px 1fr; gap:14px; align-items:center;">
+        <button class="btn secondary" id="btnShow">表示</button>
+
+        <div class="label">表示日</div>
+        <input class="input" type="date" id="viewDate" />
+
+        <button class="btn" id="btnSaveAll">入力<br>確定</button>
+      </div>
+
+      <div class="h2">算定項目（マスタ項目）</div>
+      <div style="display:flex; gap:14px; align-items:center;">
+        <button class="btn blue small" id="btnAdd">行を追加</button>
+        <button class="btn" id="btnOrder" style="padding:12px 22px;">順番登録</button>
+      </div>
+
+      <table style="margin-top:10px;">
+        <thead>
+          <tr>
+            <th style="width:38%;">算定項目</th>
+            <th style="width:12%;">表示順</th>
+            <th style="width:20%;">有効開始日</th>
+            <th style="width:20%;">有効終了日</th>
+            <th style="width:10%;">メモ</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+  <script>
+    seedIfEmpty();
+
+    const viewDate = qs("#viewDate");
+    const tbody = qs("#tbody");
+    viewDate.value = "2026-02-12";
+
+    function render(){
+      const d = viewDate.value || todayISO();
+      const items = getMasters().filter(m => (m.start <= d && d <= m.end));
+      tbody.innerHTML = "";
+
+      items.forEach(m=>{
+        const tr = document.createElement("tr");
+        tr.dataset.id = m.id;
+        tr.innerHTML = `
+          <td>
+            <input class="input name" value="${m.name ?? ""}" style="height:46px;">
+            <div style="margin-top:6px; font-size:16px; color:#444;">単位: <input class="input unit" value="${m.unit ?? ""}" style="height:40px; font-size:18px;"></div>
+          </td>
+          <td class="center"><input class="input order" type="number" min="1" step="1" value="${m.order ?? ""}" style="height:46px; text-align:center;"></td>
+          <td class="center"><input class="input start" type="date" value="${m.start ?? ""}" style="height:46px;"></td>
+          <td class="center"><input class="input end" type="date" value="${m.end ?? ""}" style="height:46px;"></td>
+          <td><input class="input memo" value="${m.memo ?? ""}" style="height:46px;"></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // 空行（見た目）
+      const minRows = 4;
+      for(let i=items.length; i<minRows; i++){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>&nbsp;</td><td></td><td></td><td></td><td></td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function collect(){
+      const mastersAll = load(LS_KEYS.masterItems, []);
+      const map = new Map(mastersAll.map(x=>[x.id, x]));
+
+      qsa("#tbody tr[data-id]").forEach(tr=>{
+        const id = tr.dataset.id;
+        const m = map.get(id);
+        if(!m) return;
+        m.name  = tr.querySelector(".name").value.trim();
+        m.unit  = tr.querySelector(".unit").value.trim();
+        m.order = Number(tr.querySelector(".order").value)||m.order||999;
+        m.start = tr.querySelector(".start").value || m.start;
+        m.end   = tr.querySelector(".end").value || m.end;
+        m.memo  = tr.querySelector(".memo").value || "";
+      });
+
+      return Array.from(map.values());
+    }
+
+    qs("#btnAdd").addEventListener("click", ()=>{
+      const all = load(LS_KEYS.masterItems, []);
+      const newItem = {
+        id: "m" + String(Date.now()),
+        name: "（新規）",
+        unit: "回",
+        order: all.length + 1,
+        start: viewDate.value || todayISO(),
+        end: "2099-12-31",
+        memo: ""
+      };
+      all.push(newItem);
+      setMasters(all);
+      render();
+    });
+
+    qs("#btnOrder").addEventListener("click", ()=>{
+      // 現在表示している行の順番を 1..n で振り直し（スクショの「順番登録」イメージ）
+      const ids = qsa("#tbody tr[data-id]").map(tr=>tr.dataset.id);
+      const all = load(LS_KEYS.masterItems, []);
+      const byId = new Map(all.map(x=>[x.id,x]));
+      ids.forEach((id, idx)=>{
+        const m = byId.get(id);
+        if(m) m.order = idx + 1;
+      });
+      setMasters(all);
+      render();
+      alert("表示順を登録しました");
+    });
+
+    qs("#btnSaveAll").addEventListener("click", ()=>{
+      const updated = collect();
+      setMasters(updated);
+      alert("保存しました");
+      render();
+    });
+
+    qs("#btnShow").addEventListener("click", render);
+    viewDate.addEventListener("change", render);
+
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>case-entry</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="page-title">case-entry.html</div>
+
+  <div class="shell">
+    <div class="topbar">
+      <div class="logo">✂️</div>
+      <div class="app-title">手術コスト算定管理</div>
+      <div class="nav">
+        <a href="./cases.html">患者一覧</a>
+        <a href="./master-item.html">マスタ編集</a>
+      </div>
+    </div>
+
+    <div class="content">
+      <div style="display:grid; grid-template-columns: 560px 240px 1fr; gap:18px; align-items:start;">
+        <div class="grid">
+          <div class="row-2">
+            <div class="label">患者ID</div>
+            <input class="input" id="patientId" />
+          </div>
+          <div class="row-2">
+            <div class="label">入力スタッフID</div>
+            <input class="input" id="staffId" />
+          </div>
+          <div class="row-2">
+            <div class="label">手術日</div>
+            <input class="input" type="date" id="caseDate" />
+          </div>
+          <div class="row-2">
+            <div class="label">診療科</div>
+            <select id="dept">
+              <option>整形外科</option>
+              <option>外科</option>
+              <option>脳外科</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="right-box">
+          <button class="btn" id="btnSave">入力<br>確定</button>
+        </div>
+
+        <div></div>
+      </div>
+
+      <div class="h2">算定項目（マスタ項目）</div>
+      <button class="btn blue small" id="btnAddMaster">行を追加</button>
+
+      <table style="margin-top:10px;">
+        <thead>
+          <tr>
+            <th style="width:40%;">算定項目</th>
+            <th style="width:12%;">算定数</th>
+            <th style="width:12%;">単位</th>
+            <th style="width:16%;">操作</th>
+            <th style="width:20%;">メモ</th>
+          </tr>
+        </thead>
+        <tbody id="masterBody"></tbody>
+      </table>
+
+      <div class="h2">算定項目（自由記載）</div>
+      <button class="btn blue small" id="btnAddFree">行を追加</button>
+
+      <table style="margin-top:10px;">
+        <thead>
+          <tr>
+            <th style="width:48%;">算定項目</th>
+            <th style="width:14%;">算定数</th>
+            <th style="width:16%;">操作</th>
+            <th style="width:22%;">メモ</th>
+          </tr>
+        </thead>
+        <tbody id="freeBody"></tbody>
+      </table>
+
+      <div style="margin-top:18px;">
+        <button class="btn secondary" id="btnBack">戻る</button>
+        <button class="btn" id="btnToggleDelete" style="margin-left:10px;">削除/復活</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+  <script>
+    seedIfEmpty();
+
+    const id = getUrlParam("id"); // edit if exists
+    let editing = null;
+
+    const patientId = qs("#patientId");
+    const staffId = qs("#staffId");
+    const caseDate = qs("#caseDate");
+    const dept = qs("#dept");
+    const masterBody = qs("#masterBody");
+    const freeBody = qs("#freeBody");
+
+    function makeMasterRow(line){
+      const masters = getMasters();
+      const tr = document.createElement("tr");
+
+      const options = masters.map(m => {
+        const sel = (line.masterId === m.id) ? "selected" : "";
+        return `<option value="${m.id}" ${sel} data-unit="${m.unit}">${m.name}</option>`;
+      }).join("");
+
+      tr.innerHTML = `
+        <td>
+          <select class="masterSel" style="width:100%; height:56px; font-size:22px;">
+            ${options}
+          </select>
+        </td>
+        <td class="center"><input class="input qty" type="number" min="0" step="1" value="${line.qty ?? 1}" style="height:46px; text-align:center;"></td>
+        <td class="center"><span class="highlight unit">${line.unit ?? ""}</span></td>
+        <td class="actions">
+          <span class="pm">
+            <button class="inc">+</button>
+            <button class="dec">-</button>
+          </span>
+        </td>
+        <td><input class="input memo" value="${line.memo ?? ""}" style="height:46px;"></td>
+      `;
+
+      // unit sync
+      const sel = tr.querySelector(".masterSel");
+      const unit = tr.querySelector(".unit");
+      function sync(){
+        const opt = sel.options[sel.selectedIndex];
+        const m = masters.find(x=>x.id===sel.value);
+        unit.textContent = m?.unit ?? opt.dataset.unit ?? "";
+      }
+      sel.addEventListener("change", sync);
+      sync();
+
+      // +/- behavior
+      tr.querySelector(".inc").addEventListener("click", ()=>{
+        const q = tr.querySelector(".qty");
+        q.value = String((Number(q.value)||0)+1);
+      });
+      tr.querySelector(".dec").addEventListener("click", ()=>{
+        const q = tr.querySelector(".qty");
+        q.value = String(Math.max(0,(Number(q.value)||0)-1));
+      });
+
+      return tr;
+    }
+
+    function makeFreeRow(line){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><input class="input name" value="${line.name ?? ""}" style="height:46px;"></td>
+        <td class="center"><input class="input qty" type="number" min="0" step="1" value="${line.qty ?? 1}" style="height:46px; text-align:center;"></td>
+        <td class="actions">
+          <span class="pm">
+            <button class="inc">+</button>
+            <button class="dec">-</button>
+          </span>
+        </td>
+        <td><input class="input memo" value="${line.memo ?? ""}" style="height:46px;"></td>
+      `;
+      tr.querySelector(".inc").addEventListener("click", ()=>{
+        const q = tr.querySelector(".qty");
+        q.value = String((Number(q.value)||0)+1);
+      });
+      tr.querySelector(".dec").addEventListener("click", ()=>{
+        const q = tr.querySelector(".qty");
+        q.value = String(Math.max(0,(Number(q.value)||0)-1));
+      });
+      return tr;
+    }
+
+    function collect(){
+      const masterLines = qsa("#masterBody tr").map(tr=>{
+        const sel = tr.querySelector(".masterSel");
+        const masters = getMasters();
+        const m = masters.find(x=>x.id===sel.value);
+        return {
+          masterId: sel.value,
+          name: m?.name ?? "",
+          qty: Number(tr.querySelector(".qty").value)||0,
+          unit: m?.unit ?? tr.querySelector(".unit").textContent ?? "",
+          memo: tr.querySelector(".memo").value ?? ""
+        };
+      });
+
+      const freeLines = qsa("#freeBody tr").map(tr=>({
+        name: tr.querySelector(".name").value ?? "",
+        qty: Number(tr.querySelector(".qty").value)||0,
+        memo: tr.querySelector(".memo").value ?? ""
+      })).filter(x=>x.name.trim() !== "");
+
+      return {
+        patientId: patientId.value.trim(),
+        staffId: staffId.value.trim(),
+        caseDate: caseDate.value,
+        dept: dept.value,
+        masterLines,
+        freeLines
+      };
+    }
+
+    function loadEditing(){
+      const cases = getCases();
+      if(!id){
+        // new
+        caseDate.value = "2026-02-12";
+        dept.value = "整形外科";
+        // 初期1行
+        masterBody.appendChild(makeMasterRow({ masterId: getMasters()[0]?.id, qty:1, unit:getMasters()[0]?.unit }));
+        return;
+      }
+      editing = cases.find(c=>c.id===id) || null;
+      if(!editing){
+        alert("指定データが見つかりませんでした");
+        location.href = "./cases.html";
+        return;
+      }
+
+      patientId.value = editing.patientId ?? "";
+      staffId.value = editing.staffId ?? "";
+      caseDate.value = editing.caseDate ?? todayISO();
+      dept.value = editing.dept ?? "整形外科";
+
+      masterBody.innerHTML = "";
+      (editing.masterLines ?? []).forEach(l => masterBody.appendChild(makeMasterRow(l)));
+      if((editing.masterLines ?? []).length === 0){
+        masterBody.appendChild(makeMasterRow({ masterId: getMasters()[0]?.id, qty:1, unit:getMasters()[0]?.unit }));
+      }
+
+      freeBody.innerHTML = "";
+      (editing.freeLines ?? []).forEach(l => freeBody.appendChild(makeFreeRow(l)));
+
+      qs("#btnToggleDelete").textContent = editing.deleted ? "復活" : "削除";
+    }
+
+    qs("#btnAddMaster").addEventListener("click", ()=>{
+      const masters = getMasters();
+      masterBody.appendChild(makeMasterRow({ masterId: masters[0]?.id, qty:1, unit: masters[0]?.unit }));
+    });
+    qs("#btnAddFree").addEventListener("click", ()=>{
+      freeBody.appendChild(makeFreeRow({ name:"", qty:1, memo:"" }));
+    });
+
+    qs("#btnSave").addEventListener("click", ()=>{
+      const data = collect();
+      if(!data.patientId){
+        alert("患者IDを入力してください");
+        return;
+      }
+      if(!data.caseDate){
+        alert("手術日を入力してください");
+        return;
+      }
+
+      const cases = getCases();
+
+      if(editing){
+        Object.assign(editing, data);
+        setCases(cases);
+        alert("更新しました");
+      }else{
+        const newCase = {
+          id: "c" + String(Date.now()),
+          caseNo: nextId("A-"),
+          deleted: false,
+          ...data
+        };
+        cases.push(newCase);
+        setCases(cases);
+        alert("登録しました");
+        location.href = `./case-entry.html?id=${encodeURIComponent(newCase.id)}`;
+      }
+    });
+
+    qs("#btnBack").addEventListener("click", ()=> location.href = "./cases.html");
+
+    qs("#btnToggleDelete").addEventListener("click", ()=>{
+      if(!editing){
+        alert("新規データは削除できません（先に保存してください）");
+        return;
+      }
+      const cases = getCases();
+      const c = cases.find(x=>x.id===editing.id);
+      c.deleted = !c.deleted;
+      setCases(cases);
+      alert(c.deleted ? "削除にしました" : "復活にしました");
+      location.reload();
+    });
+
+    loadEditing();
+  </script>
+</body>
+</html>
