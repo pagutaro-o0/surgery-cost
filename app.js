@@ -97,3 +97,20 @@ function getUrlParam(name){
   const u = new URL(location.href);
   return u.searchParams.get(name);
 }
+function renderAppHeader({ active = "cases" } = {}) {
+  const el = document.querySelector("#appHeader");
+  if (!el) return;
+
+  const isActive = (key) => (key === active ? 'style="text-decoration:underline;"' : "");
+
+  el.innerHTML = `
+    <div class="topbar">
+      <div class="logo">✂️</div>
+      <div class="app-title">手術コスト算定管理</div>
+      <div class="nav">
+        <a href="./cases.html" ${isActive("cases")}>患者一覧</a>
+        <a href="./master-item.html" ${isActive("master")}>マスタ編集</a>
+      </div>
+    </div>
+  `;
+}

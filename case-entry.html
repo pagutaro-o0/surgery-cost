@@ -10,14 +10,11 @@
   <div class="page-title">case-entry.html</div>
 
   <div class="shell">
-    <div class="topbar">
-      <div class="logo">✂️</div>
-      <div class="app-title">手術コスト算定管理</div>
-      <div class="nav">
-        <a href="./cases.html">患者一覧</a>
-        <a href="./master-item.html">マスタ編集</a>
-      </div>
-    </div>
+  <div id="appHeader"></div>
+  <div class="content">
+    <!-- ここから各ページの中身 -->
+  </div>
+</div>
 
     <div class="content">
       <div style="display:grid; grid-template-columns: 560px 240px 1fr; gap:18px; align-items:start;">
@@ -91,6 +88,9 @@
   </div>
 
   <script src="./app.js"></script>
+  <script>
+  renderAppHeader({ active: "cases" });
+</script>
   <script>
     seedIfEmpty();
 
