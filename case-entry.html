@@ -10,89 +10,89 @@
   <div class="page-title">case-entry.html</div>
 
   <div class="shell">
-  <div id="appHeader"></div>
-  <div class="content">
-    <!-- ここから各ページの中身 -->
-  </div>
-</div>
+    <div id="appHeader"></div>
 
     <div class="content">
-      <div style="display:grid; grid-template-columns: 560px 240px 1fr; gap:18px; align-items:start;">
-        <div class="grid">
-          <div class="row-2">
+      <!-- 上：基本情報（2列）＋操作ボタン -->
+      <section class="entry-top">
+        <div class="entry-card">
+          <div class="entry-grid">
             <div class="label">患者ID</div>
             <input class="input" id="patientId" />
-          </div>
-          <div class="row-2">
+
             <div class="label">入力スタッフID</div>
             <input class="input" id="staffId" />
-          </div>
-          <div class="row-2">
+
             <div class="label">手術日</div>
             <input class="input" type="date" id="caseDate" />
-          </div>
-          <div class="row-2">
+
             <div class="label">診療科</div>
-            <select id="dept">
+            <select id="dept" class="input">
               <option>整形外科</option>
               <option>外科</option>
               <option>脳外科</option>
             </select>
           </div>
+
+          <div class="entry-actions">
+            <button class="btn blue" id="btnSave">入力確定</button>
+            <button class="btn secondary" id="btnBack">戻る</button>
+            <button class="btn" id="btnToggleDelete">削除/復活</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- マスタ項目 -->
+      <section class="entry-section">
+        <div class="entry-section-head">
+          <div class="h2" style="margin:0;">算定項目（マスタ項目）</div>
+          <button class="btn blue small" id="btnAddMaster">行を追加</button>
         </div>
 
-        <div class="right-box">
-          <button class="btn" id="btnSave">入力<br>確定</button>
+        <div class="table-wrap entry-table">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40%;">算定項目</th>
+                <th style="width:12%;">算定数</th>
+                <th style="width:12%;">単位</th>
+                <th style="width:16%;">操作</th>
+                <th style="width:20%;">メモ</th>
+              </tr>
+            </thead>
+            <tbody id="masterBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 自由記載 -->
+      <section class="entry-section">
+        <div class="entry-section-head">
+          <div class="h2" style="margin:0;">算定項目（自由記載）</div>
+          <button class="btn blue small" id="btnAddFree">行を追加</button>
         </div>
 
-        <div></div>
-      </div>
-
-      <div class="h2">算定項目（マスタ項目）</div>
-      <button class="btn blue small" id="btnAddMaster">行を追加</button>
-
-      <table style="margin-top:10px;">
-        <thead>
-          <tr>
-            <th style="width:40%;">算定項目</th>
-            <th style="width:12%;">算定数</th>
-            <th style="width:12%;">単位</th>
-            <th style="width:16%;">操作</th>
-            <th style="width:20%;">メモ</th>
-          </tr>
-        </thead>
-        <tbody id="masterBody"></tbody>
-      </table>
-
-      <div class="h2">算定項目（自由記載）</div>
-      <button class="btn blue small" id="btnAddFree">行を追加</button>
-
-      <table style="margin-top:10px;">
-        <thead>
-          <tr>
-            <th style="width:48%;">算定項目</th>
-            <th style="width:14%;">算定数</th>
-            <th style="width:16%;">操作</th>
-            <th style="width:22%;">メモ</th>
-          </tr>
-        </thead>
-        <tbody id="freeBody"></tbody>
-      </table>
-
-      <div style="margin-top:18px;">
-        <button class="btn secondary" id="btnBack">戻る</button>
-        <button class="btn" id="btnToggleDelete" style="margin-left:10px;">削除/復活</button>
-      </div>
-
+        <div class="table-wrap entry-table">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:48%;">算定項目</th>
+                <th style="width:14%;">算定数</th>
+                <th style="width:16%;">操作</th>
+                <th style="width:22%;">メモ</th>
+              </tr>
+            </thead>
+            <tbody id="freeBody"></tbody>
+          </table>
+        </div>
+      </section>
     </div>
   </div>
 
   <script src="./app.js"></script>
   <script>
-  renderAppHeader({ active: "cases" });
-</script>
-  <script>
     seedIfEmpty();
+    if (typeof renderAppHeader === "function") renderAppHeader({ active: "cases" });
 
     const id = getUrlParam("id"); // edit if exists
     let editing = null;
@@ -115,33 +115,32 @@
 
       tr.innerHTML = `
         <td>
-          <select class="masterSel" style="width:100%; height:56px; font-size:22px;">
+          <select class="masterSel masterSelCompact">
             ${options}
           </select>
         </td>
-        <td class="center"><input class="input qty" type="number" min="0" step="1" value="${line.qty ?? 1}" style="height:46px; text-align:center;"></td>
+        <td class="center">
+          <input class="input qty compactNum" type="number" min="0" step="1" value="${line.qty ?? 1}">
+        </td>
         <td class="center"><span class="highlight unit">${line.unit ?? ""}</span></td>
         <td class="actions">
           <span class="pm">
-            <button class="inc">+</button>
-            <button class="dec">-</button>
+            <button class="inc" type="button">+</button>
+            <button class="dec" type="button">-</button>
           </span>
         </td>
-        <td><input class="input memo" value="${line.memo ?? ""}" style="height:46px;"></td>
+        <td><input class="input memo compactText" value="${line.memo ?? ""}"></td>
       `;
 
-      // unit sync
       const sel = tr.querySelector(".masterSel");
       const unit = tr.querySelector(".unit");
       function sync(){
-        const opt = sel.options[sel.selectedIndex];
         const m = masters.find(x=>x.id===sel.value);
-        unit.textContent = m?.unit ?? opt.dataset.unit ?? "";
+        unit.textContent = m?.unit ?? "";
       }
       sel.addEventListener("change", sync);
       sync();
 
-      // +/- behavior
       tr.querySelector(".inc").addEventListener("click", ()=>{
         const q = tr.querySelector(".qty");
         q.value = String((Number(q.value)||0)+1);
@@ -157,15 +156,15 @@
     function makeFreeRow(line){
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><input class="input name" value="${line.name ?? ""}" style="height:46px;"></td>
-        <td class="center"><input class="input qty" type="number" min="0" step="1" value="${line.qty ?? 1}" style="height:46px; text-align:center;"></td>
+        <td><input class="input name compactText" value="${line.name ?? ""}"></td>
+        <td class="center"><input class="input qty compactNum" type="number" min="0" step="1" value="${line.qty ?? 1}"></td>
         <td class="actions">
           <span class="pm">
-            <button class="inc">+</button>
-            <button class="dec">-</button>
+            <button class="inc" type="button">+</button>
+            <button class="dec" type="button">-</button>
           </span>
         </td>
-        <td><input class="input memo" value="${line.memo ?? ""}" style="height:46px;"></td>
+        <td><input class="input memo compactText" value="${line.memo ?? ""}"></td>
       `;
       tr.querySelector(".inc").addEventListener("click", ()=>{
         const q = tr.querySelector(".qty");
@@ -211,13 +210,17 @@
     function loadEditing(){
       const cases = getCases();
       if(!id){
-        // new
         caseDate.value = "2026-02-12";
         dept.value = "整形外科";
-        // 初期1行
-        masterBody.appendChild(makeMasterRow({ masterId: getMasters()[0]?.id, qty:1, unit:getMasters()[0]?.unit }));
+        masterBody.appendChild(makeMasterRow({
+          masterId: getMasters()[0]?.id,
+          qty: 1,
+          unit: getMasters()[0]?.unit
+        }));
+        qs("#btnToggleDelete").disabled = true;
         return;
       }
+
       editing = cases.find(c=>c.id===id) || null;
       if(!editing){
         alert("指定データが見つかりませんでした");
@@ -233,7 +236,11 @@
       masterBody.innerHTML = "";
       (editing.masterLines ?? []).forEach(l => masterBody.appendChild(makeMasterRow(l)));
       if((editing.masterLines ?? []).length === 0){
-        masterBody.appendChild(makeMasterRow({ masterId: getMasters()[0]?.id, qty:1, unit:getMasters()[0]?.unit }));
+        masterBody.appendChild(makeMasterRow({
+          masterId: getMasters()[0]?.id,
+          qty: 1,
+          unit: getMasters()[0]?.unit
+        }));
       }
 
       freeBody.innerHTML = "";
@@ -246,6 +253,7 @@
       const masters = getMasters();
       masterBody.appendChild(makeMasterRow({ masterId: masters[0]?.id, qty:1, unit: masters[0]?.unit }));
     });
+
     qs("#btnAddFree").addEventListener("click", ()=>{
       freeBody.appendChild(makeFreeRow({ name:"", qty:1, memo:"" }));
     });
@@ -277,7 +285,7 @@
         cases.push(newCase);
         setCases(cases);
         alert("登録しました");
-        location.href = `./case-entry.html?id=${encodeURIComponent(newCase.id)}`;
+location.href = "./cases.html";
       }
     });
 

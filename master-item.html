@@ -10,49 +10,53 @@
   <div class="page-title">master-item.html</div>
 
   <div class="shell">
-  <div id="appHeader"></div>
-  <div class="content">
-    <!-- ここから各ページの中身 -->
-  </div>
-</div>
+    <div id="appHeader"></div>
 
     <div class="content">
-      <div style="display:grid; grid-template-columns: 140px 160px 280px 1fr; gap:14px; align-items:center;">
-        <button class="btn secondary" id="btnShow">表示</button>
+      <!-- 上：操作＋表示日 -->
+      <section class="master-top">
+        <div class="master-card">
+          <div class="master-controls">
+            <button class="btn secondary" id="btnShow">表示</button>
 
-        <div class="label">表示日</div>
-        <input class="input" type="date" id="viewDate" />
+            <div class="label">表示日</div>
+            <input class="input" type="date" id="viewDate" />
 
-        <button class="btn" id="btnSaveAll">入力<br>確定</button>
+            <button class="btn blue" id="btnSaveAll">入力確定</button>
+          </div>
+
+          <div class="master-actions">
+            <div class="h2" style="margin:0;">算定項目（マスタ項目）</div>
+            <div class="master-actions-right">
+              <button class="btn blue small" id="btnAdd">行を追加</button>
+              <button class="btn" id="btnOrder">順番登録</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 一覧 -->
+      <div class="table-wrap master-table">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:38%;">算定項目</th>
+              <th style="width:12%;">表示順</th>
+              <th style="width:20%;">有効開始日</th>
+              <th style="width:20%;">有効終了日</th>
+              <th style="width:10%;">メモ</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
       </div>
-
-      <div class="h2">算定項目（マスタ項目）</div>
-      <div style="display:flex; gap:14px; align-items:center;">
-        <button class="btn blue small" id="btnAdd">行を追加</button>
-        <button class="btn" id="btnOrder" style="padding:12px 22px;">順番登録</button>
-      </div>
-
-      <table style="margin-top:10px;">
-        <thead>
-          <tr>
-            <th style="width:38%;">算定項目</th>
-            <th style="width:12%;">表示順</th>
-            <th style="width:20%;">有効開始日</th>
-            <th style="width:20%;">有効終了日</th>
-            <th style="width:10%;">メモ</th>
-          </tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
     </div>
   </div>
 
   <script src="./app.js"></script>
   <script>
-  renderAppHeader({ active: "master" });
-</script>
-  <script>
     seedIfEmpty();
+    if (typeof renderAppHeader === "function") renderAppHeader({ active: "master" });
 
     const viewDate = qs("#viewDate");
     const tbody = qs("#tbody");
@@ -68,13 +72,24 @@
         tr.dataset.id = m.id;
         tr.innerHTML = `
           <td>
-            <input class="input name" value="${m.name ?? ""}" style="height:46px;">
-            <div style="margin-top:6px; font-size:16px; color:#444;">単位: <input class="input unit" value="${m.unit ?? ""}" style="height:40px; font-size:18px;"></div>
+            <input class="input name compactText" value="${m.name ?? ""}">
+            <div class="unit-row">
+              <span>単位</span>
+              <input class="input unit compactText" value="${m.unit ?? ""}">
+            </div>
           </td>
-          <td class="center"><input class="input order" type="number" min="1" step="1" value="${m.order ?? ""}" style="height:46px; text-align:center;"></td>
-          <td class="center"><input class="input start" type="date" value="${m.start ?? ""}" style="height:46px;"></td>
-          <td class="center"><input class="input end" type="date" value="${m.end ?? ""}" style="height:46px;"></td>
-          <td><input class="input memo" value="${m.memo ?? ""}" style="height:46px;"></td>
+          <td class="center">
+            <input class="input order compactNum" type="number" min="1" step="1" value="${m.order ?? ""}">
+          </td>
+          <td class="center">
+            <input class="input start compactText" type="date" value="${m.start ?? ""}">
+          </td>
+          <td class="center">
+            <input class="input end compactText" type="date" value="${m.end ?? ""}">
+          </td>
+          <td>
+            <input class="input memo compactText" value="${m.memo ?? ""}">
+          </td>
         `;
         tbody.appendChild(tr);
       });
@@ -124,7 +139,6 @@
     });
 
     qs("#btnOrder").addEventListener("click", ()=>{
-      // 現在表示している行の順番を 1..n で振り直し（スクショの「順番登録」イメージ）
       const ids = qsa("#tbody tr[data-id]").map(tr=>tr.dataset.id);
       const all = load(LS_KEYS.masterItems, []);
       const byId = new Map(all.map(x=>[x.id,x]));
