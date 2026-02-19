@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>case-usages</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="page-title">case-usages.html</div>
+
+  <div class="shell">
+    <div id="appHeader"></div>
+
+    <div class="content">
+      <div class="card">
+        <div class="case-head">
+          <div class="label">患者ID</div>
+          <div class="input" id="hPatient" style="display:flex; align-items:center;"></div>
+
+          <div class="label">診療科</div>
+          <div class="input" id="hDept" style="display:flex; align-items:center;"></div>
+
+          <div class="label">手術日</div>
+          <div class="input" id="hDate" style="display:flex; align-items:center;"></div>
+
+          <div class="label">病名</div>
+          <div class="input" id="hDisease" style="display:flex; align-items:center;"></div>
+
+          <div class="label">術式</div>
+          <div class="input" id="hProc" style="display:flex; align-items:center;"></div>
+
+          <div class="label">年齢</div>
+          <div class="input" id="hAge" style="display:flex; align-items:center;"></div>
+        </div>
+
+        <div style="margin-top:14px; display:flex; gap:10px;">
+          <button class="btn blue small" id="btnAdd">行を追加</button>
+          <button class="btn blue" id="btnSave">保存</button>
+          <button class="btn secondary" id="btnBack">戻る</button>
+        </div>
+      </div>
+
+      <div class="h2">消耗品</div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:52%;">消耗品</th>
+              <th style="width:12%;">使用量</th>
+              <th style="width:12%;">単位</th>
+              <th style="width:24%;">メモ</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+  <script>
+    seedIfEmpty();
+    renderAppHeader({ active: "cases" });
+
+    const caseId = getUrlParam("case_id");
+    if(!caseId){
+      alert("case_id が指定されていません");
+      location.href = "./cases.html";
+    }
+
+    const c = getCases().find(x=>x.case_id===caseId);
+    if(!c){
+      alert("症例が見つかりません");
+      location.href = "./cases.html";
+    }
+
+    qs("#hPatient").textContent = `${c.patient_id ?? ""}  ${c.patient_name ?? ""}`;
+    qs("#hDept").textContent = c.dept ?? "";
+    qs("#hDate").textContent = toJPDate(c.surg_date);
+    qs("#hDisease").textContent = c.disease ?? "";
+    qs("#hProc").textContent = c.surg_procedure ?? "";
+    qs("#hAge").textContent = (c.age ?? "") === "" ? "" : `${c.age}歳`;
+
+    const tbody = qs("#tbody");
+
+    function makeRow(line){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><input class="input item" value="${line.item_name ?? ""}" style="height:46px;"></td>
+        <td class="center"><input class="input qty" type="number" min="0" step="1" value="${line.quantity ?? 1}" style="height:46px; text-align:center;"></td>
+        <td class="center"><input class="input unit" value="${line.unit ?? "本"}" style="height:46px; text-align:center;"></td>
+        <td><input class="input memo" value="${line.memo ?? ""}" style="height:46px;"></td>
+      `;
+      return tr;
+    }
+
+    function load(){
+      const lines = getUsageByCaseId(caseId);
+      tbody.innerHTML = "";
+      if(lines.length === 0){
+        tbody.appendChild(makeRow({ item_name:"生理食塩水250ml", quantity:1, unit:"本", memo:"" }));
+        return;
+      }
+      lines.forEach(l=> tbody.appendChild(makeRow(l)));
+    }
+
+    function collect(){
+      return qsa("#tbody tr").map(tr=>({
+        item_name: tr.querySelector(".item").value,
+        quantity: tr.querySelector(".qty").value,
+        unit: tr.querySelector(".unit").value,
+        memo: tr.querySelector(".memo").value
+      }));
+    }
+
+    qs("#btnAdd").addEventListener("click", ()=>{
+      tbody.appendChild(makeRow({ item_name:"", quantity:1, unit:"本", memo:"" }));
+    });
+
+    qs("#btnSave").addEventListener("click", ()=>{
+      setUsageForCaseId(caseId, collect());
+      alert("保存しました");
+    });
+
+    qs("#btnBack").addEventListener("click", ()=> location.href="./cases.html");
+
+    load();
+  </script>
+</body>
+</html>

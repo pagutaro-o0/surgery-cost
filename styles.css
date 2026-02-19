@@ -6,121 +6,110 @@
   --beige:#f3d3b7;
   --bg:#f7f8f3;
   --card:#ffffff;
-  --line:#d9dee7;
 }
 
 *{ box-sizing:border-box; }
-
 body{
   margin:0;
   font-family:"Noto Sans JP", system-ui, -apple-system, "Segoe UI", sans-serif;
   background:white;
   color:#111;
-  font-size:16px;          /* ←全体を小さめに */
-  line-height:1.4;
 }
 
 .page-title{
-  font-size:32px;
-  margin:16px 20px 10px;
-  font-weight:700;
-  color:#111;
+  font-size:34px;
+  margin:16px 20px 8px;
+  font-weight:800;
 }
 
-/* ====== Layout frame ====== */
 .shell{
   margin:16px 20px 40px;
   border:2px solid var(--border);
-  border-radius:14px;      /* 角丸で余白感 */
-  overflow:hidden;
   background:var(--bg);
 }
 
-/* ====== Header ====== */
 .topbar{
   display:flex;
   align-items:center;
-  gap:14px;
+  gap:16px;
   padding:12px 16px;
   background:var(--green);
   border-bottom:2px solid var(--border);
 }
 
 .logo{
-  width:44px;
-  height:44px;
+  width:52px;height:52px;
   border:2px solid var(--border);
   border-radius:12px;
   display:grid;
   place-items:center;
   background:white;
-  font-size:22px;
+  font-size:24px;
 }
 
 .app-title{
-  font-size:26px;
-  font-weight:800;
-  letter-spacing:.5px;
+  font-size:30px;
+  font-weight:900;
+  letter-spacing:1px;
 }
 
 .nav{
   margin-left:auto;
   display:flex;
-  gap:26px;
-  font-size:22px;
-  font-weight:800;
+  gap:28px;
+  font-size:26px;
+  font-weight:900;
 }
-.nav a{
-  color:#111;
-  text-decoration:none;
-}
+.nav a{ color:#111; text-decoration:none; }
 .nav a:hover{ text-decoration:underline; }
+.nav a.active{ text-decoration:underline; }
 
-/* ====== Content ====== */
 .content{
   padding:18px 22px 26px;
 }
 
-.h2{
-  font-size:24px;
-  font-weight:900;
-  margin:14px 0 10px;
+/* Cards */
+.card{
+  background:var(--card);
+  border:2px solid var(--border);
+  border-radius:10px;
+  padding:14px 16px;
 }
 
-/* ====== Generic inputs ====== */
-.input, select{
-  border:1px solid var(--border);
+/* Labels / Inputs */
+.label{
+  background:var(--blue);
+  color:white;
+  border:2px solid var(--border);
   padding:10px 12px;
-  font-size:16px;
+  font-size:18px;
+  font-weight:900;
+  text-align:center;
+}
+
+.input, select{
+  border:2px solid var(--border);
+  padding:10px 12px;
+  font-size:18px;
   background:white;
   width:100%;
-  height:44px;
-  border-radius:10px;
+  height:48px;
 }
 
-/* ====== Generic buttons ====== */
+/* Buttons */
 .btn{
   border:2px solid var(--border);
   background:var(--beige);
-  padding:10px 14px;
-  font-size:16px;
-  font-weight:800;
+  padding:12px 16px;
+  font-size:18px;
+  font-weight:900;
   cursor:pointer;
-  border-radius:10px;
 }
 .btn.secondary{ background:white; }
-.btn.blue{
-  background:var(--blue);
-  color:white;
-  border-color:var(--border);
-}
-.btn.small{
-  padding:8px 12px;
-  font-size:14px;
-}
+.btn.blue{ background:var(--blue); color:white; }
+.btn.small{ padding:10px 14px; font-size:16px; }
 .btn:active{ transform:translateY(1px); }
 
-/* 「参照/修正」リンク風 */
 .btn.linklike{
   background:transparent;
   border:none;
@@ -131,20 +120,16 @@ body{
   cursor:pointer;
 }
 .highlight{
-  background:#fffd54;
-  padding:2px 6px;
+  background:#25f1ff;
+  padding:2px 8px;
   font-weight:900;
 }
 
-/* ====== Table (card-ish) ====== */
+/* Tables */
 .table-wrap{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:16px;
-  padding:10px;
-  box-shadow:0 6px 18px rgba(0,0,0,.06);
+  background:white;
+  border:2px solid var(--border);
   overflow:auto;
-  max-height:calc(100vh - 330px); /* 画面に収めやすく */
 }
 
 table{
@@ -152,15 +137,13 @@ table{
   border-collapse:collapse;
   table-layout:fixed;
   background:white;
-  border:1px solid var(--line);
-  border-radius:12px;
-  overflow:hidden;
 }
 
 th, td{
-  border-bottom:1px solid var(--line);
+  border:1px solid #777;
   padding:10px 10px;
-  font-size:15px;
+  font-size:16px;
+  vertical-align:middle;
 }
 
 th{
@@ -175,331 +158,66 @@ td.center{ text-align:center; }
 td.right{ text-align:right; }
 td.actions{ text-align:center; }
 
-.badge-del{
-  color:#111;
-  font-size:14px;
-}
-
-/* ====== +/- buttons (used in entry pages) ====== */
-.pm{
-  display:inline-flex;
-  gap:10px;
-  align-items:center;
-}
-.pm button{
-  width:36px;
-  height:36px;
-  font-size:20px;
-  font-weight:900;
-  border:2px solid var(--border);
-  background:#fffd54;
-  cursor:pointer;
-  border-radius:10px;
-}
-.pm button:active{ transform:translateY(1px); }
-
-/* ====== Form rows (case-entry/master-item) ====== */
-.grid{ display:grid; gap:12px; }
-
-.row-2{
+/* Filter area */
+.filters{
   display:grid;
-  grid-template-columns: 220px 1fr;
-  gap:12px;
-  align-items:center;
-}
-
-.label{
-  background:var(--blue);
-  color:white;
-  border:2px solid var(--border);
-  padding:10px 12px;
-  font-size:16px;
-  font-weight:900;
-  text-align:center;
-  border-radius:10px;
-  height:44px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.right-box{
-  display:flex;
-  justify-content:center;
-  align-items:flex-start;
-  padding-top:4px;
-}
-
-/* =========================================================
-   cases.html layout (new)
-   uses: .cases-toolbar .cases-actions .ui-btn .filter-grid
-   ========================================================= */
-
-.cases-toolbar{
-  display:flex;
-  gap:18px;
-  align-items:flex-start;
-  flex-wrap:wrap;              /* ←被り防止 */
-  margin-bottom:16px;
-}
-
-/* 左：アクションボタン */
-.cases-actions{
-  display:flex;
-  gap:14px;
-  flex:0 0 auto;
-}
-
-.ui-btn{
-  border:1px solid var(--border);
-  cursor:pointer;
-  font-weight:900;
-  border-radius:12px;
-  height:56px;
-  width:180px;
-  font-size:18px;
-  letter-spacing:.5px;
-  background:white;
-}
-
-.ui-btn-primary{
-  background:var(--beige);
-  color:#1565c0;
-}
-
-.ui-btn-secondary{
-  background:white;
-  color:#111;
-}
-
-/* 右：検索条件 */
-.cases-filters{
-  flex:1 1 520px;
-  min-width:320px;
-}
-
-.filter-grid{
-  display:grid;
-  gap:10px 14px;
-  align-items:center;
-  grid-template-columns: 120px 1fr 120px 1fr;
-}
-
-.filter-label{
-  background:var(--blue);
-  color:white;
-  border:2px solid var(--border);
-  padding:8px 10px;
-  font-size:16px;
-  font-weight:900;
-  text-align:center;
-  border-radius:10px;
-  height:44px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.filter-input{
-  border:1px solid var(--border);
-  padding:10px 12px;
-  font-size:16px;
-  background:white;
-  height:44px;
-  width:100%;
-  border-radius:10px;
-}
-
-/* checkbox */
-.check-wrap{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  height:44px;
-  border:1px solid var(--border);
-  background:white;
-  padding:0 12px;
-  border-radius:10px;
-  font-size:15px;
-}
-.check-wrap input{
-  width:18px;
-  height:18px;
-}
-
-/* 狭い時は2列に落とす */
-@media (max-width: 900px){
-  .filter-grid{
-    grid-template-columns: 120px 1fr;
-  }
-  .ui-btn{
-    width:170px;
-  }
-}
-
-/* さらに狭いときはフォームラベルを縮める */
-@media (max-width: 520px){
-  .row-2{
-    grid-template-columns: 160px 1fr;
-  }
-  .filter-grid{
-    grid-template-columns: 100px 1fr;
-  }
-}
-/* =========================
-   case-entry layout
-   ========================= */
-
-.entry-card{
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 14px;
-  box-shadow: 0 6px 18px rgba(0,0,0,.06);
-  display:flex;
-  gap:14px;
-  align-items:flex-start;
-  flex-wrap:wrap;
-}
-
-.entry-grid{
-  display:grid;
+  grid-template-columns: 160px minmax(220px, 1fr) 160px minmax(220px, 1fr) 160px minmax(220px, 1fr);
   gap:10px 12px;
   align-items:center;
-  grid-template-columns: 120px 1fr 120px 1fr;
-  flex: 1 1 520px;
-  min-width: 320px;
 }
 
-.entry-actions{
-  display:flex;
-  gap:10px;
-  flex: 0 0 auto;
-  align-items:flex-start;
-  flex-wrap:wrap;
+/* input/selectが列からはみ出さない保険 */
+.filters > *{ min-width:0; }
+
+/* Page headings */
+.h1{
+  font-size:36px;
+  font-weight:900;
+  margin:6px 0 10px;
+}
+.h2{
+  font-size:26px;
+  font-weight:900;
+  margin:18px 0 10px;
 }
 
-.entry-actions .btn{
-  height: 44px;
-  padding: 8px 12px;
-  font-size: 15px;
-}
-
-.entry-section{
-  margin-top: 14px;
-}
-
-.entry-section-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  margin-bottom: 8px;
-}
-
-/* テーブルの高さを抑えて「ページ全体のスクロール」を減らす */
-.entry-table{
-  max-height: 34vh;
-}
-
-/* 行内コントロールをコンパクトに */
-.masterSelCompact{
-  width:100%;
-  height:44px;
-  font-size:16px;
-  border:1px solid var(--border);
-  border-radius:10px;
-  padding:10px 12px;
-  background:white;
-}
-
-.compactNum{
-  height:44px;
-  font-size:16px;
-  text-align:center;
-}
-
-.compactText{
-  height:44px;
-  font-size:16px;
-}
-
-/* 狭い時は1列に */
-@media (max-width: 900px){
-  .entry-grid{
-    grid-template-columns: 120px 1fr;
-  }
-  .entry-table{
-    max-height: 38vh;
-  }
-}
-/* =========================
-   master-item layout
-   ========================= */
-
-.master-card{
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 14px;
-  box-shadow: 0 6px 18px rgba(0,0,0,.06);
-}
-
-.master-controls{
+/* Usage header grid */
+.case-head{
   display:grid;
-  grid-template-columns: 180px 120px 280px 180px;
-  gap:12px;
+  grid-template-columns: 140px 220px 140px 1fr;
+  gap:10px 12px;
   align-items:center;
 }
 
-.master-actions{
-  margin-top: 12px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
+/* Small inline note list */
+.note{
+  font-size:18px;
+  line-height:1.6;
 }
 
-.master-actions-right{
-  display:flex;
-  gap:10px;
-  align-items:center;
-}
-
-.master-table{
-  max-height: calc(100vh - 300px);
-  margin-top: 14px;
-}
-
-/* 算定項目セル内の「単位」行 */
-.unit-row{
-  margin-top: 8px;
-  display:flex;
-  gap:8px;
-  align-items:center;
-  font-size: 13px;
-  color:#444;
-}
-.unit-row span{
-  min-width: 34px;
-}
-
-/* モバイル/狭い画面では折り返す */
-@media (max-width: 900px){
-  .master-controls{
-    grid-template-columns: 180px 120px 1fr;
+/* Responsive */
+@media (max-width: 1100px){
+  .filters{
+    grid-template-columns: 160px 1fr 160px 1fr;
   }
 }
-@media (max-width: 520px){
-  .master-controls{
-    grid-template-columns: 1fr;
+@media (max-width: 720px){
+  .filters{
+    grid-template-columns: 140px 1fr;
   }
-  .master-actions{
-    flex-direction: column;
-    align-items:flex-start;
+  .case-head{
+    grid-template-columns: 140px 1fr;
   }
-  .master-actions-right{
-    width:100%;
-    justify-content:flex-end;
+  .nav{ font-size:22px; gap:18px; }
+  .app-title{ font-size:26px; }
+}
+@media (max-width: 1200px){
+  .filters{
+    grid-template-columns: 160px minmax(220px, 1fr) 160px minmax(220px, 1fr);
+  }
+}
+@media (max-width: 720px){
+  .filters{
+    grid-template-columns: 140px 1fr;
   }
 }

@@ -1,116 +1,191 @@
-// app.js
-const LS_KEYS = {
-  masterItems: "sc_master_items",
-  cases: "sc_cases",
-  seq: "sc_seq"
-};
+/* ========= Helpers ========= */
+const qs  = (s, el=document) => el.querySelector(s);
+const qsa = (s, el=document) => Array.from(el.querySelectorAll(s));
 
 function todayISO(){
   const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
   const dd = String(d.getDate()).padStart(2,"0");
-  return `${yyyy}-${mm}-${dd}`;
+  return `${y}-${m}-${dd}`;
 }
 function toJPDate(iso){
   if(!iso) return "";
   const [y,m,d] = iso.split("-");
-  return `${y}/${Number(m)}/${Number(d)}`;
+  return `${Number(y)}/${Number(m)}/${Number(d)}`;
 }
+function getUrlParam(key){
+  const u = new URL(location.href);
+  return u.searchParams.get(key);
+}
+
+/* ========= Storage ========= */
+const LS_KEYS = {
+  cases: "surg_cases",
+  usage: "case_usage"
+};
 
 function load(key, fallback){
   try{
-    const s = localStorage.getItem(key);
-    if(!s) return fallback;
-    return JSON.parse(s);
+    const raw = localStorage.getItem(key);
+    if(!raw) return fallback;
+    return JSON.parse(raw);
   }catch{
     return fallback;
   }
 }
-function save(key, val){
-  localStorage.setItem(key, JSON.stringify(val));
+function save(key, value){
+  localStorage.setItem(key, JSON.stringify(value));
 }
-
-function nextId(prefix){
-  const seq = load(LS_KEYS.seq, { caseNo: 1000 });
-  seq.caseNo += 1;
-  save(LS_KEYS.seq, seq);
-  return `${prefix}${seq.caseNo}`;
-}
-
-function seedIfEmpty(){
-  const masters = load(LS_KEYS.masterItems, null);
-  if(!masters){
-    save(LS_KEYS.masterItems, [
-      { id:"m1", name:"皮膚切開数", unit:"皮切", order:1, start:"2026-02-01", end:"2099-12-31", memo:"" },
-      { id:"m2", name:"ナビゲーション", unit:"回", order:2, start:"2026-02-01", end:"2099-12-31", memo:"" }
-    ]);
-  }
-  const cases = load(LS_KEYS.cases, null);
-  if(!cases){
-    save(LS_KEYS.cases, [
-      {
-        id: "c1001",
-        caseDate: "2026-02-12",
-        patientId: "P001",
-        staffId: "S001",
-        dept: "整形外科",
-        caseNo: "A-0001",
-        deleted: true,
-        masterLines: [
-          { masterId:"m1", name:"皮膚切開数", qty:1, unit:"皮切", memo:"" },
-          { masterId:"m2", name:"ナビゲーション", qty:1, unit:"回", memo:"" }
-        ],
-        freeLines: []
-      },
-      {
-        id: "c1002",
-        caseDate: "2026-02-13",
-        patientId: "P002",
-        staffId: "S002",
-        dept: "整形外科",
-        caseNo: "A-0002",
-        deleted: false,
-        masterLines: [
-          { masterId:"m1", name:"皮膚切開数", qty:1, unit:"皮切", memo:"" }
-        ],
-        freeLines: []
-      }
-    ]);
-  }
-}
-
-function getMasters(){
-  const items = load(LS_KEYS.masterItems, []);
-  // orderでソート
-  return [...items].sort((a,b)=> (a.order??999) - (b.order??999));
-}
-function setMasters(items){ save(LS_KEYS.masterItems, items); }
 
 function getCases(){ return load(LS_KEYS.cases, []); }
-function setCases(items){ save(LS_KEYS.cases, items); }
+function setCases(v){ save(LS_KEYS.cases, v); }
 
-function qs(sel){ return document.querySelector(sel); }
-function qsa(sel){ return Array.from(document.querySelectorAll(sel)); }
+function getUsages(){ return load(LS_KEYS.usage, []); }
+function setUsages(v){ save(LS_KEYS.usage, v); }
 
-function getUrlParam(name){
-  const u = new URL(location.href);
-  return u.searchParams.get(name);
+function seedIfEmpty(){
+  // CSVインポート前提：ここでは何もしない
 }
-function renderAppHeader({ active = "cases" } = {}) {
-  const el = document.querySelector("#appHeader");
-  if (!el) return;
 
-  const isActive = (key) => (key === active ? 'style="text-decoration:underline;"' : "");
+/* ========= Header ========= */
+function renderAppHeader({ active="cases" } = {}){
+  const el = qs("#appHeader");
+  if(!el) return;
 
+  const a = (key) => key === active ? "active" : "";
   el.innerHTML = `
     <div class="topbar">
       <div class="logo">✂️</div>
       <div class="app-title">手術コスト算定管理</div>
       <div class="nav">
-        <a href="./cases.html" ${isActive("cases")}>患者一覧</a>
-        <a href="./master-item.html" ${isActive("master")}>マスタ編集</a>
+        <a class="${a("import")}" href="./index.html">データインポート</a>
+        <a class="${a("cases")}" href="./cases.html">患者一覧</a>
       </div>
     </div>
   `;
+}
+
+/* ========= CSV parser ========= */
+function parseCSV(text){
+  const rows = [];
+  let cur = "", inQ = false;
+  const line = [];
+
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    const next = text[i+1];
+
+    if(ch === '"'){
+      if(inQ && next === '"'){ cur += '"'; i++; }
+      else inQ = !inQ;
+      continue;
+    }
+    if(!inQ && ch === ","){
+      line.push(cur); cur = "";
+      continue;
+    }
+    if(!inQ && ch === "\n"){
+      line.push(cur); cur = "";
+      rows.push(line.splice(0));
+      continue;
+    }
+    if(ch === "\r") continue;
+    cur += ch;
+  }
+  if(cur.length || line.length){
+    line.push(cur);
+    rows.push(line.splice(0));
+  }
+  return rows;
+}
+
+function normalizeHeader(h){ return (h||"").trim(); }
+
+function toISODateFromMaybeJP(s){
+  const t = (s||"").trim();
+  if(!t) return "";
+  if(t.includes("-")){
+    const [y,m,d] = t.split("-");
+    return `${y.padStart(4,"0")}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
+  }
+  if(t.includes("/")){
+    const [y,m,d] = t.split("/");
+    return `${y.padStart(4,"0")}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  }
+  return t;
+}
+
+/* 期待する見出し:
+   症例ID, 患者番号, 患者氏名（漢字）, 手術実施日, 年齢,
+   実施診療科, 確定術式フリー検索, 術後病名, リマークス（看護）
+*/
+function importCasesFromCSV(csvText){
+  const rows = parseCSV(csvText);
+  if(rows.length < 2) throw new Error("CSVにデータがありません");
+
+  const header = rows[0].map(normalizeHeader);
+  const idx = (name) => header.indexOf(name);
+
+  const required = [
+    "症例ID","患者番号","患者氏名（漢字）","手術実施日","年齢",
+    "実施診療科","確定術式フリー検索","術後病名","リマークス（看護）"
+  ];
+  for(const r of required){
+    if(idx(r) === -1) throw new Error(`CSV見出しが見つかりません: ${r}`);
+  }
+
+  const imported = [];
+  for(let i=1;i<rows.length;i++){
+    const r = rows[i];
+    if(r.length === 1 && !r[0]) continue;
+
+    const case_id = String(r[idx("症例ID")]||"").trim();
+    if(!case_id) continue;
+
+    imported.push({
+      case_id,
+      patient_id: String(r[idx("患者番号")]||"").trim(),
+      patient_name: String(r[idx("患者氏名（漢字）")]||"").trim(),
+      surg_date: toISODateFromMaybeJP(String(r[idx("手術実施日")]||"")),
+      age: Number(String(r[idx("年齢")]||"").trim()) || null,
+      dept: String(r[idx("実施診療科")]||"").trim(),
+      surg_procedure: String(r[idx("確定術式フリー検索")]||"").trim(),
+      disease: String(r[idx("術後病名")]||"").trim(),
+      remarks: String(r[idx("リマークス（看護）")]||"").trim(),
+      deleted: false
+    });
+  }
+
+  const current = getCases();
+  const map = new Map(current.map(c => [c.case_id, c]));
+  imported.forEach(c => map.set(c.case_id, c));
+  const merged = Array.from(map.values());
+
+  merged.sort((a,b)=>{
+    const ad = a.surg_date || "";
+    const bd = b.surg_date || "";
+    if(ad !== bd) return bd.localeCompare(ad);
+    return String(a.patient_id||"").localeCompare(String(b.patient_id||""));
+  });
+
+  setCases(merged);
+  return { imported: imported.length, total: merged.length };
+}
+
+/* ========= Usage ========= */
+function getUsageByCaseId(caseId){
+  const all = getUsages();
+  return all.filter(u => u.case_id === caseId);
+}
+function setUsageForCaseId(caseId, lines){
+  const all = getUsages().filter(u => u.case_id !== caseId);
+  const normalized = lines.map(l => ({
+    case_id: caseId,
+    item_name: String(l.item_name||"").trim(),
+    quantity: Number(l.quantity)||0,
+    unit: String(l.unit||"").trim(),
+    memo: String(l.memo||"").trim()
+  })).filter(l => l.item_name !== "");
+  setUsages(all.concat(normalized));
 }

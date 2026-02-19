@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>手術一覧</title>
+  <title>cases</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -13,86 +13,85 @@
     <div id="appHeader"></div>
 
     <div class="content">
-      <!-- 上：操作 + 検索条件 -->
-      <section class="cases-toolbar">
-        <div class="cases-actions">
-          <button class="ui-btn ui-btn-primary" id="btnNew">新規入力</button>
-          <button class="ui-btn ui-btn-secondary" id="btnSearch">表示</button>
+      <div class="card">
+        <div class="filters">
+          <div class="label">開始日</div>
+          <input class="input" type="date" id="startDate" />
+
+          <div class="label">終了日</div>
+          <input class="input" type="date" id="endDate" />
+
+          <div class="label">診療科</div>
+          <select class="input" id="dept"></select>
+
+          <div class="label">削除フラグ</div>
+          <label style="display:flex; align-items:center; gap:10px; background:white; border:2px solid var(--border); height:48px; padding:0 12px;">
+            <input type="checkbox" id="showDeleted" style="width:20px; height:20px;">
+            <span style="font-weight:900;">表示する</span>
+          </label>
+
+          <button class="btn secondary" id="btnRefresh" style="grid-column: 1 / span 2;">画面更新</button>
         </div>
-
-        <div class="cases-filters">
-          <div class="filter-grid">
-            <div class="filter-label">開始日</div>
-            <input class="filter-input" type="date" id="startDate" />
-
-            <div class="filter-label">診療科</div>
-            <select class="filter-input" id="dept">
-              <option value="">（全て）</option>
-              <option>整形外科</option>
-              <option>外科</option>
-              <option>脳外科</option>
-            </select>
-
-            <div class="filter-label">終了日</div>
-            <input class="filter-input" type="date" id="endDate" />
-
-            <div class="filter-label">削除フラグ</div>
-            <label class="check-wrap">
-              <input type="checkbox" id="showDeleted" />
-              <span>表示する</span>
-            </label>
-          </div>
-        </div>
-      </section>
+      </div>
 
       <div class="h2">手術一覧</div>
 
-      <!-- 下：一覧テーブル（カード内スクロール） -->
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th style="width:18%;">手術日</th>
-              <th style="width:18%;">患者ID</th>
-              <th style="width:18%;">診療科</th>
-              <th style="width:20%;">管理番号</th>
-              <th style="width:14%;"></th>
-              <th style="width:12%;">削除<br>フラグ</th>
+              <th style="width:12%;">実施日</th>
+              <th style="width:14%;">患者番号</th>
+              <th style="width:16%;">氏名</th>
+              <th style="width:8%;">年齢</th>
+              <th style="width:14%;">診療科</th>
+              <th style="width:18%;">病名</th>
+              <th style="width:14%;">術式</th>
+              <th style="width:4%;"></th>
             </tr>
           </thead>
           <tbody id="tbody"></tbody>
         </table>
       </div>
+
     </div>
   </div>
 
   <script src="./app.js"></script>
   <script>
     seedIfEmpty();
-    if (typeof renderAppHeader === "function") renderAppHeader({ active: "cases" });
+    renderAppHeader({ active: "cases" });
 
     const tbody = qs("#tbody");
     const startDate = qs("#startDate");
-    const endDate = qs("#endDate");
-    const dept = qs("#dept");
+    const endDate   = qs("#endDate");
+    const dept      = qs("#dept");
     const showDeleted = qs("#showDeleted");
 
-    // 初期値（必要なら変更OK）
+    // 初期：絞り込み無し
     startDate.value = "";
     endDate.value = "";
-    dept.value = "";              // （全て）
-    showDeleted.checked = true;   // 必要なら false に
-    function render(){
-      const cases = getCases();
-      const s = startDate.value || "0000-01-01";
-      const e = endDate.value || "9999-12-31";
-      const dep = dept.value;
-      const del = showDeleted.checked;
+    showDeleted.checked = false;
 
-      const filtered = cases.filter(c=>{
-        const okDate = (c.caseDate >= s && c.caseDate <= e);
-        const okDept = (!dep || c.dept === dep);
-        const okDel = del ? true : !c.deleted;
+    function buildDeptOptions(){
+      const cases = getCases();
+      const set = new Set(cases.map(c => c.dept).filter(Boolean));
+      const list = Array.from(set).sort((a,b)=>a.localeCompare(b));
+      dept.innerHTML = `<option value="">（すべて）</option>` + list.map(d=>`<option value="${d}">${d}</option>`).join("");
+    }
+
+    function render(){
+      const all = getCases();
+
+      const s = startDate.value || "0000-01-01";
+      const e = endDate.value   || "9999-12-31";
+      const d = dept.value || "";
+      const showDel = showDeleted.checked;
+
+      const filtered = all.filter(c=>{
+        const okDate = (String(c.surg_date||"") >= s && String(c.surg_date||"") <= e);
+        const okDept = (!d || c.dept === d);
+        const okDel  = showDel ? true : !c.deleted;
         return okDate && okDept && okDel;
       });
 
@@ -100,41 +99,45 @@
       filtered.forEach(c=>{
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td class="center">${toJPDate(c.caseDate)}</td>
-          <td class="center">${c.patientId}</td>
-          <td class="center">${c.dept}</td>
-          <td class="center">${c.caseNo ?? ""}</td>
+          <td class="center">${toJPDate(c.surg_date)}</td>
+          <td class="center">${c.patient_id ?? ""}</td>
+          <td class="center">${c.patient_name ?? ""}</td>
+          <td class="center">${c.age ?? ""}</td>
+          <td class="center">${c.dept ?? ""}</td>
+          <td>${c.disease ?? ""}</td>
+          <td>${c.surg_procedure ?? ""}</td>
           <td class="actions">
-            <button class="btn linklike" data-open="${c.id}">
-              <span class="highlight">参照/修正</span>
-            </button>
+            <button class="btn linklike" data-open="${c.case_id}"><span class="highlight">表示</span></button>
           </td>
-          <td class="center">${c.deleted ? '<span class="badge-del">削除済み</span>' : ""}</td>
         `;
         tbody.appendChild(tr);
       });
 
-      // 空行（見た目のため）
       const minRows = 6;
       for(let i=filtered.length; i<minRows; i++){
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td>`;
+        tr.innerHTML = `<td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>`;
         tbody.appendChild(tr);
       }
     }
 
-    // events
-    qs("#btnNew").addEventListener("click", ()=> location.href = "./case-entry.html");
-    qs("#btnSearch").addEventListener("click", render);
-    [startDate,endDate,dept,showDeleted].forEach(el=> el.addEventListener("change", render));
+    qs("#btnRefresh").addEventListener("click", ()=>{
+      buildDeptOptions();
+      render();
+    });
+
+    [startDate,endDate,dept,showDeleted].forEach(el=>{
+      el.addEventListener("change", render);
+    });
 
     tbody.addEventListener("click", (e)=>{
       const btn = e.target.closest("[data-open]");
       if(!btn) return;
-      const id = btn.getAttribute("data-open");
-      location.href = `./case-entry.html?id=${encodeURIComponent(id)}`;
+      const caseId = btn.getAttribute("data-open");
+      location.href = `./case-usages.html?case_id=${encodeURIComponent(caseId)}`;
     });
 
+    buildDeptOptions();
     render();
   </script>
 </body>
