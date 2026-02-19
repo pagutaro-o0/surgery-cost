@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>cases</title>
+  <title>患者一覧</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -74,10 +74,12 @@
     showDeleted.checked = false;
 
     function buildDeptOptions(){
-      const cases = getCases();
-      const set = new Set(cases.map(c => c.dept).filter(Boolean));
+      const all = getCases();
+      const set = new Set(all.map(c => c.dept).filter(Boolean));
       const list = Array.from(set).sort((a,b)=>a.localeCompare(b));
-      dept.innerHTML = `<option value="">（すべて）</option>` + list.map(d=>`<option value="${d}">${d}</option>`).join("");
+      dept.innerHTML =
+        `<option value="">（すべて）</option>` +
+        list.map(d=>`<option value="${d}">${d}</option>`).join("");
     }
 
     function render(){
@@ -89,7 +91,8 @@
       const showDel = showDeleted.checked;
 
       const filtered = all.filter(c=>{
-        const okDate = (String(c.surg_date||"") >= s && String(c.surg_date||"") <= e);
+        const date = String(c.surg_date||"");
+        const okDate = (date >= s && date <= e);
         const okDept = (!d || c.dept === d);
         const okDel  = showDel ? true : !c.deleted;
         return okDate && okDept && okDel;
@@ -107,7 +110,9 @@
           <td>${c.disease ?? ""}</td>
           <td>${c.surg_procedure ?? ""}</td>
           <td class="actions">
-            <button class="btn linklike" data-open="${c.case_id}"><span class="highlight">表示</span></button>
+            <button type="button" class="btn linklike" data-open="${c.case_id}">
+              <span class="highlight">表示</span>
+            </button>
           </td>
         `;
         tbody.appendChild(tr);
@@ -130,11 +135,18 @@
       el.addEventListener("change", render);
     });
 
+    // ★ ここ重要：表示クリックで case_id を付けて遷移
     tbody.addEventListener("click", (e)=>{
       const btn = e.target.closest("[data-open]");
       if(!btn) return;
+
       const caseId = btn.getAttribute("data-open");
-      location.href = `./case-usages.html?case_id=${encodeURIComponent(caseId)}`;
+      const url = `./case-usages.html?case_id=${encodeURIComponent(caseId)}`;
+
+      // デバッグ：遷移先が分かるように（あとで消してOK）
+      console.log("open case", caseId, "=>", url);
+
+      location.href = url;
     });
 
     buildDeptOptions();

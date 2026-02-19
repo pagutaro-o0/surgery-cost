@@ -210,16 +210,52 @@ function getUsageByCaseId(caseId){
   const key = String(caseId);
   return getUsages().filter(u => String(u.case_id) === key);
 }
+
 function setUsageForCaseId(caseId, lines){
   const key = String(caseId);
   const rest = getUsages().filter(u => String(u.case_id) !== key);
 
   const normalized = (lines || []).map(l => ({
     case_id: key,
-    free_item_name: String(l.free_item_name || l.item_name || "").trim(),
+    item_name: String(l.item_name || l.free_item_name || "").trim(),
     quantity: Number(l.quantity) || 0,
+    unit: String(l.unit || "").trim(),
     memo: String(l.memo || "").trim()
-  })).filter(x => x.free_item_name !== "");
+  })).filter(x => x.item_name !== "");
 
   setUsages(rest.concat(normalized));
 }
+// ★付きだけ抽出して [{name, qty}] を返す
+function extractStarNameQty(text){
+  const t = String(text || "");
+  const re = /★\s*([^\n★]+)/g;     // ★から次の★/改行まで
+  const out = [];
+  let m;
+
+  while((m = re.exec(t)) !== null){
+    const block = m[1].trim();     // 例: 生理食塩水250ml[[1]本,標本摘出...]
+    
+    // 品目名：[[...]] の手前、カンマより前
+    const name = block
+      .split("[[")[0]
+      .split(",")[0]
+      .trim();
+
+    // 数量：[[1]本] / [[1]本, ...] から 1 を拾う（無ければ1）
+    let qty = 1;
+    const q = block.match(/\[\[\s*\[?\s*(\d+)\s*\]?\s*[^\]]*\]\]/);
+    if(q) qty = Number(q[1]);
+
+    if(name) out.push({ name, qty });
+  }
+
+  // 同名は合算
+  const map = new Map();
+  for(const x of out){
+    map.set(x.name, (map.get(x.name) || 0) + x.qty);
+  }
+  return Array.from(map.entries()).map(([name, qty]) => ({ name, qty }));
+}
+const remarks = "★生理食塩水250ml[[1]本]\n★生理食塩水250ml[[1]本]";
+console.log(extractStarNameQty(remarks));
+// => [{ name: "生理食塩水250ml", qty: 2 }]

@@ -67,16 +67,20 @@
 
     const caseId = getUrlParam("case_id");
     if(!caseId){
-      alert("case_id が指定されていません");
+      alert("case_id が指定されていません（患者一覧の「表示」から開いてください）");
       location.href = "./cases.html";
+      throw new Error("missing case_id");
     }
 
-    const c = getCases().find(x=>x.case_id===caseId);
+    // ★ 文字列化して比較（型ズレ対策）
+    const c = getCases().find(x => String(x.case_id) === String(caseId));
     if(!c){
-      alert("症例が見つかりません");
+      alert("症例が見つかりません（インポート後に一覧から開き直してください）");
       location.href = "./cases.html";
+      throw new Error("case not found");
     }
 
+    // ヘッダ表示
     qs("#hPatient").textContent = `${c.patient_id ?? ""}  ${c.patient_name ?? ""}`;
     qs("#hDept").textContent = c.dept ?? "";
     qs("#hDate").textContent = toJPDate(c.surg_date);
@@ -97,20 +101,35 @@
       return tr;
     }
 
-    function load(){
-      const lines = getUsageByCaseId(caseId);
-      tbody.innerHTML = "";
-      if(lines.length === 0){
-        tbody.appendChild(makeRow({ item_name:"生理食塩水250ml", quantity:1, unit:"本", memo:"" }));
-        return;
-      }
-      lines.forEach(l=> tbody.appendChild(makeRow(l)));
-    }
+    function loadLines(){
+  const lines = getUsageByCaseId(caseId);
+  tbody.innerHTML = "";
+
+  // 既に保存済みがあればそれを表示
+  if(lines.length > 0){
+    lines.forEach(l=> tbody.appendChild(makeRow(l)));
+    return;
+  }
+
+  // ★抽出（症例の remarks から）
+  const stars = extractStarNameQty(c.remarks || "");
+
+  // ★があればその分の行を作る
+  if(stars.length > 0){
+    stars.forEach(s=>{
+      tbody.appendChild(makeRow({ item_name: s.name, quantity: s.qty, unit:"本", memo:"★抽出" }));
+    });
+    return;
+  }
+
+  // ★が無ければ空行1つ
+  tbody.appendChild(makeRow({ item_name:"", quantity:1, unit:"本", memo:"" }));
+}
 
     function collect(){
       return qsa("#tbody tr").map(tr=>({
         item_name: tr.querySelector(".item").value,
-        quantity: tr.querySelector(".qty").value,
+        quantity: Number(tr.querySelector(".qty").value) || 0,
         unit: tr.querySelector(".unit").value,
         memo: tr.querySelector(".memo").value
       }));
@@ -127,7 +146,31 @@
 
     qs("#btnBack").addEventListener("click", ()=> location.href="./cases.html");
 
-    load();
+    loadLines();
+    function extractStarNameQty(text){
+  const t = String(text || "");
+  const re = /★\s*([^\n★]+)/g;
+  const out = [];
+  let m;
+
+  while((m = re.exec(t)) !== null){
+    const block = m[1].trim();
+    const name = block.split("[[")[0].split(",")[0].trim();
+
+    let qty = 1;
+    const q = block.match(/\[\[\s*\[?\s*(\d+)\s*\]?\s*[^\]]*\]\]/);
+    if(q) qty = Number(q[1]);
+
+    if(name) out.push({ name, qty });
+  }
+
+  // 同名は合算
+  const map = new Map();
+  for(const x of out){
+    map.set(x.name, (map.get(x.name) || 0) + x.qty);
+  }
+  return Array.from(map.entries()).map(([name, qty]) => ({ name, qty }));
+}
   </script>
 </body>
 </html>
