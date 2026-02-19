@@ -59,30 +59,56 @@
 
   <script src="./app.js"></script>
   <script>
-    seedIfEmpty();
-    renderAppHeader({ active: "import" });
+  seedIfEmpty();
+  renderAppHeader({ active: "import" });
 
-    const file = qs("#file");
-    const msg  = qs("#msg");
+  const file = qs("#file");
+  const msg  = qs("#msg");
 
-    qs("#btnGoCases").addEventListener("click", ()=> location.href="./cases.html");
+  qs("#btnGoCases").addEventListener("click", ()=> location.href="./cases.html");
 
-    qs("#btnImport").addEventListener("click", async ()=>{
-      if(!file.files || file.files.length === 0){
-        alert("CSVファイルを選択してください");
-        return;
-      }
-      const f = file.files[0];
-      const text = await f.text();
-      try{
-        const r = importCasesFromCSV(text);
-        msg.textContent = `インポート完了：${r.imported}件（合計 ${r.total}件）`;
-        alert("インポートしました");
-      }catch(e){
-        console.error(e);
-        alert(String(e.message || e));
-      }
-    });
-  </script>
+  function tryDecode(buf, enc){
+    try{
+      return new TextDecoder(enc).decode(buf);
+    }catch{
+      return null;
+    }
+  }
+
+  function looksLikeHasHeader(text, headerWord){
+    // ざっくり「症例ID」が文字化けせず含まれてるか
+    return text && text.includes(headerWord);
+  }
+
+  qs("#btnImport").addEventListener("click", async ()=>{
+    if(!file.files || file.files.length === 0){
+      alert("CSVファイルを選択してください");
+      return;
+    }
+
+    const f = file.files[0];
+    const buf = await f.arrayBuffer();
+
+    // 優先順：Shift_JIS系 → UTF-8（Excel由来はだいたいSJIS）
+    const candidates = ["shift-jis", "cp932", "utf-8"];
+    let text = null;
+
+    for(const enc of candidates){
+      const t = tryDecode(buf, enc);
+      if(looksLikeHasHeader(t, "症例ID")){ text = t; break; }
+      // まだ見つからない場合も、最後にutf-8は一応使う
+      if(!text) text = t;
+    }
+
+    try{
+      const r = importCasesFromCSV(text);
+      msg.textContent = `インポート完了：${r.imported}件（合計 ${r.total}件）`;
+      alert("インポートしました（画面遷移なし）");
+    }catch(e){
+      console.error(e);
+      alert(String(e.message || e));
+    }
+  });
+</script>
 </body>
 </html>

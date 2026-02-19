@@ -21,8 +21,8 @@ function getUrlParam(key){
 
 /* ========= Storage ========= */
 const LS_KEYS = {
-  cases: "surg_cases",
-  usage: "case_usage"
+  cases: "sc_cases",        // 患者一覧（症例） ←ここに統一
+  usage: "case_usage"       // 消耗品
 };
 
 function load(key, fallback){
@@ -44,9 +44,7 @@ function setCases(v){ save(LS_KEYS.cases, v); }
 function getUsages(){ return load(LS_KEYS.usage, []); }
 function setUsages(v){ save(LS_KEYS.usage, v); }
 
-function seedIfEmpty(){
-  // CSVインポート前提：ここでは何もしない
-}
+function seedIfEmpty(){}
 
 /* ========= Header ========= */
 function renderAppHeader({ active="cases" } = {}){
@@ -66,7 +64,7 @@ function renderAppHeader({ active="cases" } = {}){
   `;
 }
 
-/* ========= CSV parser ========= */
+/* ========= CSV parsing ========= */
 function parseCSV(text){
   const rows = [];
   let cur = "", inQ = false;
@@ -100,7 +98,12 @@ function parseCSV(text){
   return rows;
 }
 
-function normalizeHeader(h){ return (h||"").trim(); }
+function normHeader(s){
+  return (s||"")
+    .replace(/\uFEFF/g,"")       // BOM除去
+    .replace(/[ 　]+/g,"")       // 半角/全角スペース除去
+    .trim();
+}
 
 function toISODateFromMaybeJP(s){
   const t = (s||"").trim();
@@ -116,52 +119,79 @@ function toISODateFromMaybeJP(s){
   return t;
 }
 
-/* 期待する見出し:
-   症例ID, 患者番号, 患者氏名（漢字）, 手術実施日, 年齢,
-   実施診療科, 確定術式フリー検索, 術後病名, リマークス（看護）
-*/
+function buildHeaderIndex(headerRow){
+  const header = headerRow.map(normHeader);
+  const map = new Map();
+  header.forEach((h,i)=> map.set(h,i));
+
+  // 同義語で探す（1つでも当たればOK）
+  const find = (...cands)=>{
+    for(const c of cands){
+      const k = normHeader(c);
+      if(map.has(k)) return map.get(k);
+    }
+    return -1;
+  };
+
+  const COL = {
+    case_id:        find("症例ID","症例ＩＤ","case_id","caseId"),
+    patient_id:     find("患者番号","患者ID","patient_id","patientId"),
+    patient_name:   find("患者氏名（漢字）","患者氏名(漢字)","患者氏名","patient_name","patientName"),
+    surg_date:      find("手術実施日","手術日","実施日","surg_date","surgDate"),
+    age:            find("年齢","age"),
+    dept:           find("実施診療科","診療科","dept"),
+    surg_procedure: find("確定術式フリー検索","確定術式","術式","surg_procedure","procedure"),
+    disease:        find("術後病名","病名","disease"),
+    remarks:        find("リマークス（看護）","リマークス(看護)","リマークス","remarks")
+  };
+
+  const required = ["case_id","patient_id","patient_name","surg_date","age","dept","surg_procedure","disease"];
+  for(const k of required){
+    if(COL[k] === -1) throw new Error(`CSV見出しが見つかりません: ${k}`);
+  }
+  return COL;
+}
+
+// UUIDでも数字でも一意にする（stringで保持）
+function normalizeCaseId(v){
+  return String(v ?? "").trim();
+}
+
 function importCasesFromCSV(csvText){
   const rows = parseCSV(csvText);
   if(rows.length < 2) throw new Error("CSVにデータがありません");
 
-  const header = rows[0].map(normalizeHeader);
-  const idx = (name) => header.indexOf(name);
-
-  const required = [
-    "症例ID","患者番号","患者氏名（漢字）","手術実施日","年齢",
-    "実施診療科","確定術式フリー検索","術後病名","リマークス（看護）"
-  ];
-  for(const r of required){
-    if(idx(r) === -1) throw new Error(`CSV見出しが見つかりません: ${r}`);
-  }
+  const COL = buildHeaderIndex(rows[0]);
 
   const imported = [];
   for(let i=1;i<rows.length;i++){
     const r = rows[i];
     if(r.length === 1 && !r[0]) continue;
 
-    const case_id = String(r[idx("症例ID")]||"").trim();
-    if(!case_id) continue;
+    const caseIdRaw = normalizeCaseId(r[COL.case_id]);
+    if(!caseIdRaw) continue;
 
     imported.push({
-      case_id,
-      patient_id: String(r[idx("患者番号")]||"").trim(),
-      patient_name: String(r[idx("患者氏名（漢字）")]||"").trim(),
-      surg_date: toISODateFromMaybeJP(String(r[idx("手術実施日")]||"")),
-      age: Number(String(r[idx("年齢")]||"").trim()) || null,
-      dept: String(r[idx("実施診療科")]||"").trim(),
-      surg_procedure: String(r[idx("確定術式フリー検索")]||"").trim(),
-      disease: String(r[idx("術後病名")]||"").trim(),
-      remarks: String(r[idx("リマークス（看護）")]||"").trim(),
+      case_id: caseIdRaw, // 文字列で統一（UUIDでもOK）
+      patient_id: Number(String(r[COL.patient_id]||"").trim()) || String(r[COL.patient_id]||"").trim(),
+      patient_name: String(r[COL.patient_name]||"").trim(),
+      surg_date: toISODateFromMaybeJP(String(r[COL.surg_date]||"")),
+      age: Number(String(r[COL.age]||"").trim()) || null,
+      dept: String(r[COL.dept]||"").trim(),
+      surg_procedure: String(r[COL.surg_procedure]||"").trim(),
+      disease: String(r[COL.disease]||"").trim(),
+      remarks: (COL.remarks !== -1) ? String(r[COL.remarks]||"").trim() : "",
       deleted: false
     });
   }
 
+  // case_id uniqueでupsert
   const current = getCases();
-  const map = new Map(current.map(c => [c.case_id, c]));
-  imported.forEach(c => map.set(c.case_id, c));
+  const map = new Map(current.map(c => [String(c.case_id), c]));
+  imported.forEach(c => map.set(String(c.case_id), c));
   const merged = Array.from(map.values());
 
+  // 並び：日付 desc → 患者番号 asc
   merged.sort((a,b)=>{
     const ad = a.surg_date || "";
     const bd = b.surg_date || "";
@@ -173,19 +203,23 @@ function importCasesFromCSV(csvText){
   return { imported: imported.length, total: merged.length };
 }
 
-/* ========= Usage ========= */
+/* ========= Usage =========
+   case_usage: { case_id, free_item_name, quantity, memo }
+*/
 function getUsageByCaseId(caseId){
-  const all = getUsages();
-  return all.filter(u => u.case_id === caseId);
+  const key = String(caseId);
+  return getUsages().filter(u => String(u.case_id) === key);
 }
 function setUsageForCaseId(caseId, lines){
-  const all = getUsages().filter(u => u.case_id !== caseId);
-  const normalized = lines.map(l => ({
-    case_id: caseId,
-    item_name: String(l.item_name||"").trim(),
-    quantity: Number(l.quantity)||0,
-    unit: String(l.unit||"").trim(),
-    memo: String(l.memo||"").trim()
-  })).filter(l => l.item_name !== "");
-  setUsages(all.concat(normalized));
+  const key = String(caseId);
+  const rest = getUsages().filter(u => String(u.case_id) !== key);
+
+  const normalized = (lines || []).map(l => ({
+    case_id: key,
+    free_item_name: String(l.free_item_name || l.item_name || "").trim(),
+    quantity: Number(l.quantity) || 0,
+    memo: String(l.memo || "").trim()
+  })).filter(x => x.free_item_name !== "");
+
+  setUsages(rest.concat(normalized));
 }
