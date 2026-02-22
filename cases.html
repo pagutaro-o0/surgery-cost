@@ -56,50 +56,53 @@
 
     </div>
   </div>
+<script src="./app.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const tbody      = document.querySelector("#tbody");
+    const startDate  = document.querySelector("#startDate");
+    const endDate    = document.querySelector("#endDate");
+    const dept       = document.querySelector("#dept");
+    const showDeleted = document.querySelector("#showDeleted");
+    const btnRefresh = document.querySelector("#btnRefresh");
 
-  <script src="./app.js"></script>
-  <script>
-    seedIfEmpty();
-    renderAppHeader({ active: "cases" });
+    // 取得した全症例をここに保持
+    let allCases = [];
 
-    const tbody = qs("#tbody");
-    const startDate = qs("#startDate");
-    const endDate   = qs("#endDate");
-    const dept      = qs("#dept");
-    const showDeleted = qs("#showDeleted");
-
-    // 初期：絞り込み無し
-    startDate.value = "";
-    endDate.value = "";
-    showDeleted.checked = false;
-
-    function buildDeptOptions(){
-      const all = getCases();
-      const set = new Set(all.map(c => c.dept).filter(Boolean));
-      const list = Array.from(set).sort((a,b)=>a.localeCompare(b));
-      dept.innerHTML =
-        `<option value="">（すべて）</option>` +
-        list.map(d=>`<option value="${d}">${d}</option>`).join("");
+    // 日付を YYYY-MM-DD → YYYY/MM/DD に軽く整形（空なら空文字）
+    function toJPDate(dateStr) {
+      if (!dateStr) return "";
+      return String(dateStr).replace(/-/g, "/");
     }
 
-    function render(){
-      const all = getCases();
+    // 診療科セレクトボックスを作る
+    function buildDeptOptions() {
+      const set = new Set(allCases.map(c => c.dept).filter(Boolean));
+      const list = Array.from(set).sort((a, b) => a.localeCompare(b));
 
+      dept.innerHTML =
+        `<option value="">（すべて）</option>` +
+        list.map(d => `<option value="${d}">${d}</option>`).join("");
+    }
+
+    // フィルタ条件に従ってテーブルを描画
+    function render() {
       const s = startDate.value || "0000-01-01";
       const e = endDate.value   || "9999-12-31";
       const d = dept.value || "";
       const showDel = showDeleted.checked;
 
-      const filtered = all.filter(c=>{
-        const date = String(c.surg_date||"");
+      const filtered = allCases.filter(c => {
+        const date = String(c.surg_date || "");
         const okDate = (date >= s && date <= e);
         const okDept = (!d || c.dept === d);
+        // deleted フラグは現状 DB に無いので、常に「削除されていない」扱いにする
         const okDel  = showDel ? true : !c.deleted;
         return okDate && okDept && okDel;
       });
 
       tbody.innerHTML = "";
-      filtered.forEach(c=>{
+      filtered.forEach(c => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td class="center">${toJPDate(c.surg_date)}</td>
@@ -118,39 +121,59 @@
         tbody.appendChild(tr);
       });
 
+      // 行が少ないときの見た目調整（空行を足す）
       const minRows = 6;
-      for(let i=filtered.length; i<minRows; i++){
+      for (let i = filtered.length; i < minRows; i++) {
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>`;
+        tr.innerHTML =
+          `<td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>`;
         tbody.appendChild(tr);
       }
     }
 
-    qs("#btnRefresh").addEventListener("click", ()=>{
+    // 「画面更新」ボタン
+    btnRefresh.addEventListener("click", () => {
       buildDeptOptions();
       render();
     });
 
-    [startDate,endDate,dept,showDeleted].forEach(el=>{
+    // 日付・診療科・削除フラグの変更で自動再描画
+    [startDate, endDate, dept, showDeleted].forEach(el => {
       el.addEventListener("change", render);
     });
 
-    // ★ ここ重要：表示クリックで case_id を付けて遷移
-    tbody.addEventListener("click", (e)=>{
+    // 行の「表示」クリックで case-usages.html に遷移
+    tbody.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-open]");
-      if(!btn) return;
+      if (!btn) return;
 
       const caseId = btn.getAttribute("data-open");
       const url = `./case-usages.html?case_id=${encodeURIComponent(caseId)}`;
-
-      // デバッグ：遷移先が分かるように（あとで消してOK）
       console.log("open case", caseId, "=>", url);
-
       location.href = url;
     });
 
-    buildDeptOptions();
-    render();
-  </script>
+    // 初回ロード：API から症例一覧を取得
+    async function loadCases() {
+      try {
+        const res = await fetch("/api/cases");
+        const data = await res.json();
+
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "症例一覧の取得に失敗しました");
+        }
+
+        allCases = data.cases || [];
+        buildDeptOptions();
+        render();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || err);
+      }
+    }
+
+    loadCases();
+  });
+</script>
 </body>
 </html>
