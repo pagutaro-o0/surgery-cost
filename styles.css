@@ -161,8 +161,8 @@ td.actions{ text-align:center; }
 /* Filter area */
 .filters{
   display:grid;
-  grid-template-columns: 160px minmax(220px, 1fr) 160px minmax(220px, 1fr) 160px minmax(220px, 1fr);
-  gap:10px 12px;
+  grid-template-columns: 240px 1fr 240px 1fr; /* 開始/終了の2セット */
+  gap:14px 16px;
   align-items:center;
 }
 
@@ -220,4 +220,88 @@ td.actions{ text-align:center; }
   .filters{
     grid-template-columns: 140px 1fr;
   }
+}
+.page-title { display: none; }
+
+/* 表示ボタン（縦に潰れない＆中央配置） */
+td.actions{
+  padding: 8px 10px;
+}
+
+td.actions .btn.linklike{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width: 64px;            /* ボタン幅 */
+  height: 40px;           /* ボタン高さ */
+  padding: 0;
+  border-radius: 6px;
+  text-decoration: none;  /* 下線いらないなら */
+}
+
+td.actions .highlight{
+  display:inline-block;
+  padding: 6px 10px;
+  background:#25f1ff;     /* いまの水色を維持 */
+  border-radius: 4px;
+  line-height: 1;
+}
+/* 手術一覧の外枠の内側に余白を作る */
+.table-wrap{
+  padding: 12px;          /* ←左右余白ができる */
+  background: white;
+}
+table{
+  width:100%;
+}
+th, td{
+  padding: 8px 8px;       /* 12→8くらいに */
+}
+/* ===== テーブルを全体的に詰める ===== */
+table th{
+  padding: 6px 8px;      /* ヘッダーの上下余白を減らす */
+  font-size: 16px;       /* 大きすぎるなら少し下げる */
+}
+
+table td{
+  padding: 6px 8px;      /* 本文セルの上下余白を減らす */
+  font-size: 16px;
+  line-height: 1.2;      /* 行間も詰める */
+}
+
+/* 行の高さが大きく見える原因が中央寄せならこれも効く */
+td.center{
+  vertical-align: middle;
+}
+
+/* もし input が表内にあるページでも高さを詰めたいなら（任意） */
+table .input, table select{
+  height: 40px;
+  font-size: 16px;
+  padding: 6px 8px;
+}
+/* テーブル：左右の余白だけ詰める（上下は維持） */
+table th, table td{
+  padding-left: 2px;
+  padding-right: 22px;
+}
+/* 手術一覧テーブル外枠だけ角丸 */
+.table-wrap{
+  border-radius: 18px;
+  overflow: hidden; /* 中のテーブル角もきれいに切る */
+}
+/* 術式欄だけ横に2列ぶん伸ばす */
+.case-head .wide-proc{
+  grid-column: 2 / span 3;  /* value列(2)から右端まで伸ばす */
+}
+/* case-usages 上部ヘッダ：左の値を広く、右の値を短く */
+.case-head{
+  grid-template-columns: 140px 360px 140px 1fr;
+}
+
+/* 患者IDの値は改行しない（はみ出しは省略） */
+#hPatient{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

@@ -15,22 +15,26 @@
     <div class="content">
       <div class="card">
         <div class="filters">
-          <div class="label">開始日</div>
-          <input class="input" type="date" id="startDate" />
+  <!-- 1行目：開始日 / 終了日 -->
+  <div class="label">開始日</div>
+  <input class="input" type="date" id="startDate" />
 
-          <div class="label">終了日</div>
-          <input class="input" type="date" id="endDate" />
+  <div class="label">終了日</div>
+  <input class="input" type="date" id="endDate" />
 
-          <div class="label">診療科</div>
-          <select class="input" id="dept"></select>
+  <!-- 2行目：診療科（開始日の下） / 削除フラグ（終了日の下） -->
+  <div class="label">診療科</div>
+  <select class="input" id="dept"></select>
 
-          <div class="label">削除フラグ</div>
-          <label style="display:flex; align-items:center; gap:10px; background:white; border:2px solid var(--border); height:48px; padding:0 12px;">
-            <input type="checkbox" id="showDeleted" style="width:20px; height:20px;">
-            <span style="font-weight:900;">表示する</span>
-          </label>
+  <div class="label">削除フラグ</div>
+  <label style="display:flex; align-items:center; gap:10px; background:white; border:2px solid var(--border); height:48px; padding:0 12px;">
+    <input type="checkbox" id="showDeleted" style="width:20px; height:20px;">
+    <span style="font-weight:900;">表示する</span>
+  </label>
 
-          <button class="btn secondary" id="btnRefresh" style="grid-column: 1 / span 2;">画面更新</button>
+  <!-- 3行目：更新ボタン -->
+  <button class="btn secondary" id="btnRefresh" style="grid-column: 1 / span 4;">画面更新</button>
+</div>
         </div>
       </div>
 
@@ -38,18 +42,18 @@
 
       <div class="table-wrap">
         <table>
-          <thead>
-            <tr>
-              <th style="width:12%;">実施日</th>
-              <th style="width:14%;">患者番号</th>
-              <th style="width:16%;">氏名</th>
-              <th style="width:8%;">年齢</th>
-              <th style="width:14%;">診療科</th>
-              <th style="width:18%;">病名</th>
-              <th style="width:14%;">術式</th>
-              <th style="width:4%;"></th>
-            </tr>
-          </thead>
+         <thead>
+  <tr>
+    <th style="width:110px;">実施日</th>
+    <th style="width:140px;">患者番号</th>
+    <th style="width:160px;">氏名</th>
+    <th style="width:80px;">年齢</th>
+    <th style="width:140px;">診療科</th>
+    <th style="width:180px;">病名</th>
+    <th>術式</th>
+    <th style="width:90px;"></th>
+  </tr>
+</thead>
           <tbody id="tbody"></tbody>
         </table>
       </div>
