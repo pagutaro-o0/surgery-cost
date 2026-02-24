@@ -23,6 +23,12 @@ def index():
     return send_from_directory(BASE_DIR, "index.html")
 
 
+# （/cases.html, /app.js, /styles.css などを配信）
+@app.get("/<path:path>")
+def static_files(path):
+    return send_from_directory(BASE_DIR, path)
+
+
 # -----------------------------
 # DB接続
 # -----------------------------
@@ -30,6 +36,11 @@ def get_conn():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def table_columns(conn, table_name: str):
+    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    return {r["name"] for r in rows}
 
 
 # -----------------------------
@@ -95,6 +106,7 @@ def build_surg_cases(df: pd.DataFrame) -> pd.DataFrame:
     out["dept"] = df["実施診療科"].astype(str).str.strip()
     out["surg_procedure"] = df["確定術式フリー検索"].astype(str).str.strip()
     out["disease"] = df["術後病名"].astype(str).str.strip()
+    out["remarks"] = df["リマークス（看護）"].astype(str).fillna("").str.strip()
 
     # 空のcase_id除外
     out = out[out["case_id"] != ""].copy()
@@ -218,30 +230,59 @@ def import_csv():
         try:
             cur.execute("BEGIN")
 
+            cols = table_columns(conn, "surg_cases")
+            has_remarks = "remarks" in cols
+
             # surg_cases: case_id で UPSERT
             for _, row in surg_cases_df.iterrows():
-                cur.execute("""
-                    INSERT INTO surg_cases
-                    (case_id, patient_id, patient_name, surg_date, age, dept, surg_procedure, disease)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(case_id) DO UPDATE SET
-                        patient_id=excluded.patient_id,
-                        patient_name=excluded.patient_name,
-                        surg_date=excluded.surg_date,
-                        age=excluded.age,
-                        dept=excluded.dept,
-                        surg_procedure=excluded.surg_procedure,
-                        disease=excluded.disease
-                """, (
-                    row["case_id"],
-                    row["patient_id"],
-                    row["patient_name"],
-                    row["surg_date"],
-                    row["age"],
-                    row["dept"],
-                    row["surg_procedure"],
-                    row["disease"],
-                ))
+                if has_remarks:
+                    cur.execute("""
+                        INSERT INTO surg_cases
+                        (case_id, patient_id, patient_name, surg_date, age, dept, surg_procedure, disease, remarks)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(case_id) DO UPDATE SET
+                            patient_id=excluded.patient_id,
+                            patient_name=excluded.patient_name,
+                            surg_date=excluded.surg_date,
+                            age=excluded.age,
+                            dept=excluded.dept,
+                            surg_procedure=excluded.surg_procedure,
+                            disease=excluded.disease,
+                            remarks=excluded.remarks
+                    """, (
+                        row["case_id"],
+                        row["patient_id"],
+                        row["patient_name"],
+                        row["surg_date"],
+                        row["age"],
+                        row["dept"],
+                        row["surg_procedure"],
+                        row["disease"],
+                        row["remarks"],
+                    ))
+                else:
+                    cur.execute("""
+                        INSERT INTO surg_cases
+                        (case_id, patient_id, patient_name, surg_date, age, dept, surg_procedure, disease)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(case_id) DO UPDATE SET
+                            patient_id=excluded.patient_id,
+                            patient_name=excluded.patient_name,
+                            surg_date=excluded.surg_date,
+                            age=excluded.age,
+                            dept=excluded.dept,
+                            surg_procedure=excluded.surg_procedure,
+                            disease=excluded.disease
+                    """, (
+                        row["case_id"],
+                        row["patient_id"],
+                        row["patient_name"],
+                        row["surg_date"],
+                        row["age"],
+                        row["dept"],
+                        row["surg_procedure"],
+                        row["disease"],
+                    ))
 
             # case_usage: 対象case_idを一旦削除して再登録（重複防止）
             target_case_ids = surg_cases_df["case_id"].astype(str).tolist()
@@ -282,6 +323,149 @@ def import_csv():
         return jsonify({"ok": False, "error": str(e)}), 400
     except Exception as e:
         return jsonify({"ok": False, "error": f"インポート処理でエラー: {e}"}), 500
+
+
+# -----------------------------
+# 症例一覧API（追加）
+# -----------------------------
+@app.get("/api/cases")
+def api_cases():
+    try:
+        conn = get_conn()
+        cols = table_columns(conn, "surg_cases")
+
+        has_remarks = "remarks" in cols
+        has_deleted = "deleted" in cols
+
+        # 列がない環境でも落ちないように SELECT を組み立てる
+        select_sql = f"""
+            SELECT
+              case_id,
+              patient_id,
+              patient_name,
+              surg_date,
+              age,
+              dept,
+              disease,
+              surg_procedure,
+              {"COALESCE(remarks, '') AS remarks" if has_remarks else "'' AS remarks"},
+              {"COALESCE(deleted, 0) AS deleted" if has_deleted else "0 AS deleted"}
+            FROM surg_cases
+            ORDER BY surg_date DESC, patient_id ASC
+        """
+        rows = conn.execute(select_sql).fetchall()
+        conn.close()
+
+        cases = []
+        for r in rows:
+            cases.append({
+                "case_id": r["case_id"],
+                "patient_id": r["patient_id"],
+                "patient_name": r["patient_name"],
+                "surg_date": r["surg_date"],
+                "age": r["age"],
+                "dept": r["dept"],
+                "disease": r["disease"],
+                "surg_procedure": r["surg_procedure"],
+                "remarks": r["remarks"],
+                "deleted": bool(r["deleted"]),
+            })
+
+        return jsonify({"ok": True, "cases": cases})
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"/api/cases エラー: {e}"}), 500
+
+
+# -----------------------------
+# 消耗品一覧API（追加）
+# -----------------------------
+@app.get("/api/case-usage")
+def api_case_usage_get():
+    case_id = (request.args.get("case_id") or "").strip()
+    if not case_id:
+        return jsonify({"ok": False, "error": "case_id is required"}), 400
+
+    try:
+        conn = get_conn()
+        rows = conn.execute("""
+            SELECT
+              case_id,
+              COALESCE(free_item_name, '') AS free_item_name,
+              COALESCE(quantity, 0) AS quantity,
+              COALESCE(unit, '') AS unit,
+              COALESCE(memo, '') AS memo
+            FROM case_usage
+            WHERE CAST(case_id AS TEXT) = ?
+            ORDER BY rowid
+        """, (str(case_id),)).fetchall()
+        conn.close()
+
+        out = []
+        for r in rows:
+            out.append({
+                "case_id": r["case_id"],
+                "free_item_name": r["free_item_name"],
+                "quantity": r["quantity"],
+                "unit": r["unit"],
+                "memo": r["memo"],
+            })
+
+        return jsonify({"ok": True, "rows": out})
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"/api/case-usage(GET) エラー: {e}"}), 500
+
+
+# -----------------------------
+# 消耗品保存API（追加・全置換）
+# -----------------------------
+@app.post("/api/case-usage")
+def api_case_usage_post():
+    case_id = (request.args.get("case_id") or "").strip()
+    if not case_id:
+        return jsonify({"ok": False, "error": "case_id is required"}), 400
+
+    try:
+        data = request.get_json(silent=True) or {}
+        rows = data.get("rows", [])
+        if not isinstance(rows, list):
+            return jsonify({"ok": False, "error": "rows must be a list"}), 400
+
+        conn = get_conn()
+        cur = conn.cursor()
+
+        # その症例の既存行を削除
+        cur.execute("DELETE FROM case_usage WHERE CAST(case_id AS TEXT) = ?", (str(case_id),))
+
+        # 再登録
+        for x in rows:
+            free_item_name = str(x.get("free_item_name", "")).strip()
+            if not free_item_name:
+                continue
+
+            q = x.get("quantity", 0)
+            try:
+                # 小数が来ても一旦float→intに寄せる（必要ならfloat保存に変えてOK）
+                quantity = int(float(q))
+            except Exception:
+                quantity = 0
+
+            unit = str(x.get("unit", "")).strip()
+            memo = str(x.get("memo", "")).strip()
+
+            cur.execute("""
+                INSERT INTO case_usage (case_id, free_item_name, quantity, unit, memo)
+                VALUES (?, ?, ?, ?, ?)
+            """, (str(case_id), free_item_name, quantity, unit, memo))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({"ok": True, "message": "saved"})
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"/api/case-usage(POST) エラー: {e}"}), 500
 
 
 # -----------------------------
