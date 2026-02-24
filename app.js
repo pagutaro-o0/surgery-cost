@@ -225,6 +225,7 @@ function setUsageForCaseId(caseId, lines){
 
   setUsages(rest.concat(normalized));
 }
+
 // ★付きだけ抽出して [{name, qty}] を返す
 function extractStarNameQty(text){
   const t = String(text || "");
@@ -234,7 +235,7 @@ function extractStarNameQty(text){
 
   while((m = re.exec(t)) !== null){
     const block = m[1].trim();     // 例: 生理食塩水250ml[[1]本,標本摘出...]
-    
+
     // 品目名：[[...]] の手前、カンマより前
     const name = block
       .split("[[")[0]
@@ -256,6 +257,105 @@ function extractStarNameQty(text){
   }
   return Array.from(map.entries()).map(([name, qty]) => ({ name, qty }));
 }
-const remarks = "★生理食塩水250ml[[1]本]\n★生理食塩水250ml[[1]本]";
-console.log(extractStarNameQty(remarks));
-// => [{ name: "生理食塩水250ml", qty: 2 }]
+
+/* =========================================================
+   Flask API連携（元のUIは残したまま、インポートボタンだけ差し替え）
+   ========================================================= */
+document.addEventListener("DOMContentLoaded", () => {
+  // 画面に応じてヘッダー描画（#appHeader があるページだけ）
+  const path = (location.pathname || "").toLowerCase();
+  const isImportPage = path.endsWith("/index.html") || path === "/" || path.endsWith("/");
+  renderAppHeader({ active: isImportPage ? "import" : "cases" });
+
+  const fileInput =
+    qs("#csvFile") ||
+    qs('input[type="file"]');
+
+  // 「インポートする」ボタンを特定（headerのリンクを拾わないようbutton優先）
+  const importBtn =
+    qs("#importBtn") ||
+    qsa("button").find((b) => (b.textContent || "").includes("インポートする"));
+
+  const patientListBtn =
+    qs("#goPatientsBtn") ||
+    qsa("button").find((b) => (b.textContent || "").includes("患者一覧へ"));
+
+  // 結果表示エリア（なければ作る）
+  let resultBox = qs("#importResult");
+  if (!resultBox && importBtn) {
+    resultBox = document.createElement("div");
+    resultBox.id = "importResult";
+    resultBox.style.marginTop = "12px";
+    resultBox.style.padding = "10px 12px";
+    resultBox.style.border = "1px solid #2c3e66";
+    resultBox.style.background = "#fff";
+    resultBox.style.whiteSpace = "pre-wrap";
+    resultBox.style.fontSize = "14px";
+
+    const parent = importBtn.parentElement || document.body;
+    parent.appendChild(resultBox);
+  }
+
+  function setResult(msg, isError = false) {
+    if (!resultBox) return;
+    resultBox.textContent = msg;
+    resultBox.style.color = isError ? "#b00020" : "#111";
+  }
+
+  // インポートページでなくても app.js は読み込まれる可能性があるので、要素がなければ何もしない
+  if (!fileInput || !importBtn) return;
+
+  importBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+
+    if (!fileInput.files || fileInput.files.length === 0) {
+      setResult("CSVファイルを選択してください。", true);
+      return;
+    }
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const originalText = importBtn.textContent;
+    importBtn.disabled = true;
+    importBtn.textContent = "インポート中...";
+
+    try {
+      const res = await fetch("/api/import-csv", {
+        method: "POST",
+        body: formData,
+      });
+
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("サーバー応答をJSONとして読めませんでした");
+      }
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "インポートに失敗しました");
+      }
+
+      setResult(
+        `✅ ${data.message || "CSVインポート完了"}\n症例: ${data.imported_cases ?? 0}件\n物品: ${data.imported_usage_rows ?? 0}件`,
+        false
+      );
+    } catch (err) {
+      console.error(err);
+      setResult(`❌ ${err.message || "インポートに失敗しました"}`, true);
+    } finally {
+      importBtn.disabled = false;
+      importBtn.textContent = originalText;
+    }
+  });
+
+  // 「患者一覧へ」ボタン（もしbuttonなら遷移）
+  if (patientListBtn) {
+    patientListBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      location.href = "./cases.html";
+    });
+  }
+});
