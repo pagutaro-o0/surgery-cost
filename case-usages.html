@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="page-title">case-usages.html</div>
+ 
 
   <div class="shell">
     <div id="appHeader"></div>
@@ -15,24 +15,22 @@
     <div class="content">
       <div class="card">
         <div class="case-head">
-          <div class="label">患者ID</div>
-          <div class="input" id="hPatient" style="display:flex; align-items:center;"></div>
+  <div class="label">患者ID</div>
+  <div class="input" id="hPatient" style="display:flex; align-items:center;"></div>
 
-          <div class="label">診療科</div>
-          <div class="input" id="hDept" style="display:flex; align-items:center;"></div>
+  <div class="label">診療科</div>
+  <div class="input" id="hDept" style="display:flex; align-items:center;"></div>
 
-          <div class="label">手術日</div>
-          <div class="input" id="hDate" style="display:flex; align-items:center;"></div>
+  <div class="label">手術日</div>
+  <div class="input" id="hDate" style="display:flex; align-items:center;"></div>
 
-          <div class="label">病名</div>
-          <div class="input" id="hDisease" style="display:flex; align-items:center;"></div>
+  <div class="label">年齢</div>
+  <div class="input" id="hAge" style="display:flex; align-items:center;"></div>
 
-          <div class="label">術式</div>
-          <div class="input" id="hProc" style="display:flex; align-items:center;"></div>
-
-          <div class="label">年齢</div>
-          <div class="input" id="hAge" style="display:flex; align-items:center;"></div>
-        </div>
+  <!-- 術式：値だけ右へ長く伸ばす -->
+  <div class="label">術式</div>
+  <div class="input wide-proc" id="hProc" style="display:flex; align-items:center;"></div>
+</div>
 
         <div style="margin-top:14px; display:flex; gap:10px;">
           <button class="btn blue small" id="btnAdd">行を追加</button>
@@ -41,7 +39,7 @@
         </div>
       </div>
 
-      <div class="h2">消耗品</div>
+      <div class="h2">患者消耗品一覧</div>
 
       <div class="table-wrap">
         <table>
@@ -84,7 +82,7 @@
     qs("#hPatient").textContent = `${c.patient_id ?? ""}  ${c.patient_name ?? ""}`;
     qs("#hDept").textContent = c.dept ?? "";
     qs("#hDate").textContent = toJPDate(c.surg_date);
-    qs("#hDisease").textContent = c.disease ?? "";
+
     qs("#hProc").textContent = c.surg_procedure ?? "";
     qs("#hAge").textContent = (c.age ?? "") === "" ? "" : `${c.age}歳`;
 
