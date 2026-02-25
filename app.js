@@ -30,7 +30,7 @@ function renderAppHeader({ active = "cases" } = {}) {
   el.innerHTML = `
     <div class="topbar">
       <div class="logo">✂️</div>
-      <div class="app-title">手術コスト算定管理</div>
+      <div class="app-title">ORBIT</div>
       <div class="nav">
         <a class="${a("import")}" href="./index.html">データインポート</a>
         <a class="${a("cases")}" href="./cases.html">患者一覧</a>
